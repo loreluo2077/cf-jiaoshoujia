@@ -13,6 +13,7 @@ export async function issueSession(c: Context<{ Bindings: Env }>): Promise<void>
 }
 
 export async function hasValidSession(c: Context<{ Bindings: Env }>): Promise<boolean> {
+	if (!c.env.SESSION_SECRET) return false;
 	const value = await getSignedCookie(c, c.env.SESSION_SECRET, SESSION_COOKIE);
 	if (value === undefined || value === false) return false;
 

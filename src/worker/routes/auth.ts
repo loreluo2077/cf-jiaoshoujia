@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { hasAuthSecret } from '../auth/constants';
+import { hasLocalAuthBypass } from '../auth/local';
 import { clearSession, hasValidSession, issueSession } from '../auth/session';
 import { isValidTotp } from '../auth/totp';
 import { isValidNavigationToken } from '../auth/token';
@@ -15,11 +16,13 @@ authRoutes.post('/totp', async (c) => {
 	return c.json({ authenticated: true });
 });
 
-authRoutes.get('/session', async (c) => c.json({ authenticated: await hasValidSession(c) }));
+authRoutes.get('/session', async (c) => c.json({
+	authenticated: hasLocalAuthBypass(c.req.raw, c.env.LOCAL_AUTH_BYPASS) || await hasValidSession(c),
+}));
 
 authRoutes.post('/logout', (c) => {
 	clearSession(c);
-	return c.json({ authenticated: false });
+	return c.json({ authenticated: hasLocalAuthBypass(c.req.raw, c.env.LOCAL_AUTH_BYPASS) });
 });
 
 export const navigationAuthRoute = new Hono<{ Bindings: Env }>();

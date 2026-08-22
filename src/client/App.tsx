@@ -1,3 +1,32 @@
+import {
+	Alert,
+	Button,
+	Card,
+	Chip,
+	Input,
+	InputOTP,
+	Label,
+	ProgressBar,
+	REGEXP_ONLY_DIGITS,
+	Spinner,
+	Table,
+	TextField,
+} from '@heroui/react';
+import {
+	ArrowDownToLine,
+	ArrowRight,
+	ArrowUpFromLine,
+	CheckCircle2,
+	CircleDashed,
+	Cloud,
+	Database,
+	Layers3,
+	LoaderCircle,
+	LogOut,
+	RefreshCw,
+	ShieldCheck,
+	Timer,
+} from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 
 type Service = {
@@ -21,6 +50,12 @@ const statusLabel: Record<Service['status'], string> = {
 	migrating: '迁移中',
 	ready: '已完成',
 };
+
+const statusAppearance = {
+	planned: { color: 'default', icon: CircleDashed },
+	migrating: { color: 'warning', icon: Timer },
+	ready: { color: 'success', icon: CheckCircle2 },
+} as const;
 
 function App() {
 	const [services, setServices] = useState<Service[]>([]);
@@ -67,9 +102,10 @@ function App() {
 	};
 
 	const logout = async () => {
-		await fetch('/api/auth/logout', { method: 'POST' });
-		setAuthState('required');
-		setServices([]);
+		const response = await fetch('/api/auth/logout', { method: 'POST' });
+		const { authenticated } = await response.json() as { authenticated: boolean };
+		setAuthState(authenticated ? 'authenticated' : 'required');
+		if (!authenticated) setServices([]);
 	};
 
 	const readDatabase = async () => {
@@ -113,33 +149,62 @@ function App() {
 			.catch(() => setAuthState('required'));
 	}, []);
 
+	const completedServices = services.filter((service) => service.status === 'ready').length;
+	const activeServices = services.filter((service) => service.status === 'migrating').length;
+	const migrationProgress = services.length
+		? Math.round(services.reduce((total, service) => total + (service.status === 'ready' ? 1 : service.status === 'migrating' ? 0.5 : 0), 0) / services.length * 100)
+		: 0;
+
 	if (authState === 'checking') {
-		return <div className="auth-screen"><div className="auth-panel"><div className="brand-mark">J</div><p className="eyebrow">APPLICATION SCAFFOLD</p><h1>检查登录状态</h1></div></div>;
+		return (
+			<div className="auth-screen">
+				<Spinner size="lg" />
+				<p>正在检查登录状态</p>
+			</div>
+		);
 	}
 
 	if (authState === 'required') {
 		return (
 			<div className="auth-screen">
-				<form className="auth-panel" onSubmit={authenticate}>
-					<div className="brand-mark">J</div>
-					<p className="eyebrow">PRIVATE WORKSPACE</p>
-					<h1>输入动态验证码</h1>
-					<p>使用身份验证器中的 6 位 TOTP 验证码登录。</p>
-					<label htmlFor="totp-code">6 位验证码</label>
-					<input
-						id="totp-code"
-						className="totp-input"
-						inputMode="numeric"
-						autoComplete="one-time-code"
-						pattern="[0-9]{6}"
-						maxLength={6}
-						value={totpCode}
-						onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-						placeholder="000000"
-						autoFocus
-					/>
-					<button className="auth-submit" type="submit" disabled={authLoading || totpCode.length !== 6}>{authLoading ? '验证中' : '登录'}</button>
-					{authError && <p className="auth-error">{authError}</p>}
+				<form onSubmit={authenticate}>
+					<Card className="auth-panel">
+						<div className="brand-mark">J</div>
+						<Card.Header>
+							<Card.Title>输入动态验证码</Card.Title>
+							<Card.Description>使用身份验证器中的 6 位 TOTP 验证码登录。</Card.Description>
+						</Card.Header>
+						<Card.Content className="auth-content">
+							<Label htmlFor="totp-code">6 位验证码</Label>
+							<InputOTP
+								id="totp-code"
+								aria-label="6 位验证码"
+								className="totp-input"
+								autoComplete="one-time-code"
+								pattern={REGEXP_ONLY_DIGITS}
+								maxLength={6}
+								value={totpCode}
+								onChange={(value) => {
+									setTotpCode(value);
+									setAuthError('');
+								}}
+								isDisabled={authLoading}
+								isInvalid={Boolean(authError)}
+								autoFocus
+							>
+								<InputOTP.Group className="otp-group">
+									{Array.from({ length: 6 }, (_, index) => <InputOTP.Slot className="otp-slot" index={index} key={index} />)}
+								</InputOTP.Group>
+							</InputOTP>
+							{authError && <p className="auth-error" role="alert">{authError}</p>}
+						</Card.Content>
+						<Card.Footer>
+							<Button type="submit" variant="primary" fullWidth isDisabled={authLoading || totpCode.length !== 6}>
+								{authLoading && <Spinner size="sm" />}
+								{authLoading ? '验证中' : '登录'}
+							</Button>
+						</Card.Footer>
+					</Card>
 				</form>
 			</div>
 		);
@@ -148,90 +213,186 @@ function App() {
 	return (
 		<div className="app-shell">
 			<header className="topbar">
-				<div className="brand-mark">J</div>
-				<div>
-					<p className="eyebrow">APPLICATION SCAFFOLD</p>
-					<h1>统一服务工作台</h1>
+				<div className="topbar-inner">
+					<div className="brand-lockup">
+						<div className="brand-mark">J</div>
+						<div>
+							<strong>Jiaoshoujia</strong>
+							<span>Application Scaffold</span>
+						</div>
+					</div>
+					<Chip color={apiStatus === 'ok' ? 'success' : apiStatus === 'error' ? 'danger' : 'default'} variant="soft" size="sm">
+						<span className="status-dot" />
+						<Chip.Label>{apiStatus === 'ok' ? 'Worker 在线' : apiStatus === 'error' ? 'API 不可用' : '连接中'}</Chip.Label>
+					</Chip>
+					<Button aria-label="退出登录" variant="ghost" size="sm" onPress={logout}>
+						<LogOut size={16} />
+						<span className="logout-label">退出</span>
+					</Button>
 				</div>
-				<div className={`runtime-status ${apiStatus}`}>
-					<span className="status-dot" />
-					{apiStatus === 'ok' ? 'Worker 在线' : apiStatus === 'error' ? 'API 不可用' : '连接中'}
-				</div>
-				<button className="logout-button" type="button" onClick={logout}>退出</button>
 			</header>
 
-			<main>
-				<section className="intro">
+			<main className="workspace">
+				<section className="page-heading">
 					<div>
-						<p className="eyebrow">CF / HONO / VITE / REACT / DRIZZLE</p>
-						<h2>把技术规范固化成可复用的开发起点。</h2>
-						<p className="intro-copy">
-							Cloudflare Worker 负责运行时和部署，Hono 管理 API，React 提供前端体验，Drizzle 统一 D1 数据访问。
-						</p>
+						<p className="eyebrow">OVERVIEW</p>
+						<h1>开发基线</h1>
+						<p>Cloudflare Workers、Hono、React、HeroUI 与 Drizzle 的统一运行状态。</p>
 					</div>
-					<div className="stack-panel">
-						<span>运行环境</span>
-						<strong>Cloudflare Workers</strong>
-						<small>Vite dev server · HMR · workerd</small>
-					</div>
+					<Button variant="outline" size="sm" onPress={loadApplication}>
+						<RefreshCw size={15} />
+						刷新状态
+					</Button>
 				</section>
 
-				<section className="section-heading">
-					<div>
-						<p className="eyebrow">MIGRATION BOARD</p>
-						<h3>服务迁移清单</h3>
-					</div>
-					<span className="count-label">{services.length || 3} 个服务</span>
+				<Alert status={apiStatus === 'ok' ? 'success' : apiStatus === 'error' ? 'danger' : 'default'}>
+					<Alert.Indicator />
+					<Alert.Content>
+						<Alert.Title>{apiStatus === 'ok' ? '本地开发环境已就绪' : apiStatus === 'error' ? 'Worker API 连接失败' : '正在连接 Worker'}</Alert.Title>
+						<Alert.Description>
+							{apiStatus === 'ok' ? '前端、Hono API 与 D1 binding 工作正常。' : apiStatus === 'error' ? '请检查 Vite Worker 日志和本地 bindings。' : '正在读取服务迁移状态。'}
+						</Alert.Description>
+					</Alert.Content>
+				</Alert>
+
+				<section className="metric-grid" aria-label="技术栈状态">
+					<Card className="metric-card">
+						<Cloud className="metric-icon" size={20} />
+						<Card.Header>
+							<Card.Description>运行时</Card.Description>
+							<Card.Title>Cloudflare Workers</Card.Title>
+						</Card.Header>
+						<Card.Footer>workerd · Vite HMR</Card.Footer>
+					</Card>
+					<Card className="metric-card">
+						<Layers3 className="metric-icon" size={20} />
+						<Card.Header>
+							<Card.Description>应用框架</Card.Description>
+							<Card.Title>Hono + React 19</Card.Title>
+						</Card.Header>
+						<Card.Footer>HeroUI v3 · Tailwind v4</Card.Footer>
+					</Card>
+					<Card className="metric-card">
+						<Database className="metric-icon" size={20} />
+						<Card.Header>
+							<Card.Description>数据层</Card.Description>
+							<Card.Title>D1 + Drizzle</Card.Title>
+						</Card.Header>
+						<Card.Footer>SQLite migrations</Card.Footer>
+					</Card>
+					<Card className="metric-card">
+						<ShieldCheck className="metric-icon" size={20} />
+						<Card.Header>
+							<Card.Description>认证</Card.Description>
+							<Card.Title>TOTP + Token</Card.Title>
+						</Card.Header>
+						<Card.Footer>12 小时签名会话</Card.Footer>
+					</Card>
 				</section>
 
-				<div className="service-grid">
-					{services.map((service, index) => (
-						<article className="service-card" key={service.id}>
-							<div className="card-topline">
-								<span className="service-index">0{index + 1}</span>
-								<span className={`status-badge ${service.status}`}>{statusLabel[service.status]}</span>
+				<div className="dashboard-grid">
+					<section className="table-section">
+						<div className="section-heading">
+							<div>
+								<p className="eyebrow">MIGRATION</p>
+								<h2>服务迁移清单</h2>
 							</div>
-							<h4>{service.name}</h4>
-							<p className="service-stack">{service.stack}</p>
-							<div className="next-step">
-								<span>下一步</span>
-								<strong>{service.nextStep}</strong>
+							<Chip variant="secondary" size="sm">{services.length || 3} 个服务</Chip>
+						</div>
+						<Table variant="secondary">
+							<Table.ScrollContainer>
+								<Table.Content aria-label="服务迁移清单" className="min-w-[720px]">
+									<Table.Header>
+										<Table.Column isRowHeader>服务</Table.Column>
+										<Table.Column>原技术栈</Table.Column>
+										<Table.Column>状态</Table.Column>
+										<Table.Column>下一步</Table.Column>
+									</Table.Header>
+									<Table.Body>
+										{services.map((service) => {
+											const appearance = statusAppearance[service.status];
+											const StatusIcon = appearance.icon;
+											return (
+												<Table.Row key={service.id}>
+													<Table.Cell><strong>{service.name}</strong></Table.Cell>
+													<Table.Cell><span className="stack-text">{service.stack}</span></Table.Cell>
+													<Table.Cell>
+														<Chip color={appearance.color} variant="soft" size="sm">
+															<StatusIcon size={12} />
+															<Chip.Label>{statusLabel[service.status]}</Chip.Label>
+														</Chip>
+													</Table.Cell>
+													<Table.Cell><span className="next-step-text">{service.nextStep}</span></Table.Cell>
+												</Table.Row>
+											);
+										})}
+									</Table.Body>
+								</Table.Content>
+							</Table.ScrollContainer>
+						</Table>
+					</section>
+
+					<Card className="migration-card" variant="secondary">
+						<Card.Header>
+							<Card.Description>整体进度</Card.Description>
+							<Card.Title>{migrationProgress}%</Card.Title>
+						</Card.Header>
+						<Card.Content>
+							<ProgressBar aria-label="服务迁移进度" value={migrationProgress}>
+								<ProgressBar.Track><ProgressBar.Fill /></ProgressBar.Track>
+							</ProgressBar>
+							<div className="migration-counts">
+								<div><strong>{completedServices}</strong><span>已完成</span></div>
+								<div><strong>{activeServices}</strong><span>进行中</span></div>
+								<div><strong>{services.length - completedServices - activeServices}</strong><span>待迁移</span></div>
 							</div>
-						</article>
-					))}
+						</Card.Content>
+						<Card.Footer>迁移状态由 `/api/services` 提供</Card.Footer>
+					</Card>
 				</div>
 
-				<section className="database-lab">
-					<div className="database-copy">
-						<p className="eyebrow">D1 DATABASE LAB</p>
-						<h3>数据库读写验证</h3>
-						<p>使用同一个 API 完成 Drizzle upsert 和查询，开发环境的数据持久化在本地 Wrangler 状态目录。</p>
-					</div>
-					<div className="database-controls">
-						<label htmlFor="database-value">测试值</label>
-						<div className="database-input-row">
-							<input
-								id="database-value"
-								value={databaseValue}
-								onChange={(event) => setDatabaseValue(event.target.value)}
-							/>
-							<button type="button" onClick={writeDatabase} disabled={databaseStatus === 'saving'}>写入</button>
-							<button className="secondary-button" type="button" onClick={readDatabase} disabled={databaseStatus === 'saving'}>读取</button>
+				<Card className="database-card">
+					<Card.Header>
+						<Card.Description>D1 DATABASE LAB</Card.Description>
+						<Card.Title>数据库读写验证</Card.Title>
+					</Card.Header>
+					<Card.Content className="database-content">
+						<TextField fullWidth name="database-value" variant="secondary" value={databaseValue} onChange={setDatabaseValue}>
+							<Label>测试值</Label>
+							<Input placeholder="输入要写入 D1 的值" />
+						</TextField>
+						<div className="database-actions">
+							<Button variant="primary" onPress={writeDatabase} isDisabled={databaseStatus === 'saving' || !databaseValue.trim()}>
+								{databaseStatus === 'saving' ? <LoaderCircle className="spin" size={16} /> : <ArrowUpFromLine size={16} />}
+								写入
+							</Button>
+							<Button variant="outline" onPress={readDatabase} isDisabled={databaseStatus === 'saving'}>
+								<ArrowDownToLine size={16} />
+								读取
+							</Button>
 						</div>
 						<div className={`database-result ${databaseStatus}`}>
-							<span>{databaseStatus === 'saving' ? '执行中' : databaseStatus === 'error' ? '读写失败' : savedSetting ? '读取成功' : '尚未读取'}</span>
-							<strong>{savedSetting ? `${savedSetting.key} = ${savedSetting.value}` : 'app_settings'}</strong>
+							<div>
+								<span>{databaseStatus === 'saving' ? '执行中' : databaseStatus === 'error' ? '读写失败' : savedSetting ? '读取成功' : '等待操作'}</span>
+								<strong>{savedSetting ? `${savedSetting.key} = ${savedSetting.value}` : 'app_settings / database-demo'}</strong>
+							</div>
+							<Database size={18} />
 						</div>
-					</div>
-				</section>
+					</Card.Content>
+				</Card>
 
-				<section className="architecture">
+				<section className="pipeline-section">
 					<div>
-						<p className="eyebrow">PROJECT SHAPE</p>
-						<h3>清晰的边界，低摩擦的迁移。</h3>
+						<p className="eyebrow">REQUEST PIPELINE</p>
+						<h2>统一请求链路</h2>
 					</div>
-					<div className="architecture-flow">
-						<span>React client</span><i>→</i><span>Hono API</span><i>→</i><span>D1 / R2 / KV</span>
+					<div className="pipeline-flow">
+						{['React + HeroUI', 'Hono API', 'Cloudflare bindings', 'D1 / R2 / KV'].map((item, index) => (
+							<div className="pipeline-item" key={item}>
+								<Chip variant={index === 0 ? 'primary' : 'secondary'}>{item}</Chip>
+								{index < 3 && <ArrowRight aria-hidden="true" size={15} />}
+							</div>
+						))}
 					</div>
 				</section>
 			</main>

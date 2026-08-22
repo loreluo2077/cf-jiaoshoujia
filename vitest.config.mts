@@ -11,6 +11,7 @@ export default defineConfig({
 			wrangler: { configPath: './wrangler.jsonc' },
 			miniflare: {
 				bindings: {
+					LOCAL_AUTH_BYPASS: 'true',
 					TEST_MIGRATIONS: await readD1Migrations(path.join(projectRoot, 'migrations')),
 					TOTP_SECRET: 'JBSWY3DPEHPK3PXP',
 					SESSION_SECRET: 'test-session-secret',

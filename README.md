@@ -1,6 +1,6 @@
 # Jiaoshoujia Application Scaffold
 
-统一的 Cloudflare 全栈应用脚手架，当前约定为 Cloudflare Workers + Vite plugin、Hono、React、D1 + Drizzle ORM，以及 Vitest Cloudflare pool。
+统一的 Cloudflare 全栈应用脚手架，当前约定为 Cloudflare Workers + Vite plugin、Hono、React、HeroUI、D1 + Drizzle ORM，以及 Vitest Cloudflare pool。
 
 ## 快速开始
 
@@ -24,6 +24,8 @@ npm run deploy             # 构建并部署到 Workers
 
 本地数据库验证接口：`GET /api/settings`、`GET /api/settings?key=database-demo` 和 `PUT /api/settings/database-demo`。写入请求格式为 `{ "value": "..." }`。
 
+本地开发默认通过 `.dev.vars` 中的 `LOCAL_AUTH_BYPASS=true` 跳过登录。该开关只对 `localhost`、`127.0.0.1` 和 `::1` 生效，生产域名仍然必须使用 TOTP、导航 Token 或 API Token。需要在本地验证完整登录流程时，将它改为 `false` 并重启开发服务器。
+
 ## 目录约定
 
 ```text
@@ -32,12 +34,14 @@ src/
   worker/                  Hono Worker 入口和 API 路由
   db/                      Drizzle schema、数据库客户端
 migrations/                Drizzle 生成的 D1 SQL migrations
-vite.config.ts             React + Cloudflare Vite plugin
+vite.config.ts             React + Tailwind CSS + Cloudflare Vite plugin
 wrangler.jsonc             Worker、Assets 和 Cloudflare bindings
 drizzle.config.ts          Drizzle Kit 配置
 ```
 
 API 统一放在 `/api` 下。新增业务服务时，在 `src/worker/routes` 增加路由模块，再由 `src/worker/index.ts` 挂载。
+
+前端 UI 统一使用 HeroUI v3。组件选型、样式边界和开发约定见 [docs/UI.md](./docs/UI.md)。
 
 ## D1 配置
 

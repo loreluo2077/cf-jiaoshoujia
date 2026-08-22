@@ -80,6 +80,16 @@ describe('application API', () => {
 		expect(response.status).toBe(200);
 	});
 
+	it('bypasses authentication only for local development hosts', async () => {
+		const localSession = await SELF.fetch('http://localhost/api/auth/session');
+		const localApi = await SELF.fetch('http://127.0.0.1/api/services');
+		const productionApi = await SELF.fetch('https://example.com/api/services');
+
+		expect(await localSession.json()).toEqual({ authenticated: true });
+		expect(localApi.status).toBe(200);
+		expect(productionApi.status).toBe(401);
+	});
+
 	it('exchanges the navigation token for a clean redirect', async () => {
 		const response = await SELF.fetch('https://example.com/auth/callback?token=test-navigation-token', { redirect: 'manual' });
 

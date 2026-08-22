@@ -25,9 +25,10 @@ const secrets = {
 	API_TOKEN: randomBytes(32).toString('base64url'),
 };
 
-const devVars = Object.entries(secrets)
-	.map(([name, value]) => `${name}=${value}`)
-	.join('\n') + '\n';
+const devVars = [
+	'LOCAL_AUTH_BYPASS=true',
+	...Object.entries(secrets).map(([name, value]) => `${name}=${value}`),
+].join('\n') + '\n';
 
 console.log('\nJiaoshoujia authentication setup\n');
 console.log('Scan this QR code with your authenticator app:\n');
