@@ -36,6 +36,7 @@
     "@react-aria/i18n": "^3.13.1",
     "@react-aria/ssr": "^3.10.1",
     "@react-aria/utils": "^3.34.1",
+    "@react-spectrum/provider": "^3.11.1",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.3",
     "lucide-react": "^1.33.0",
