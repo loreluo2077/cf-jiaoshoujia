@@ -1,0 +1,5 @@
+# Local-only development secrets. Prefer `npm run auth:setup -- --write-dev-vars`.
+TOTP_SECRET=replace-with-base32-totp-secret
+SESSION_SECRET=replace-with-a-long-random-session-secret
+NAVIGATION_TOKEN=replace-with-a-long-random-navigation-token
+API_TOKEN=replace-with-a-long-random-api-token
