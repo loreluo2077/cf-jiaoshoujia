@@ -22,8 +22,6 @@ npm run auth:setup         # 生成 TOTP 二维码和认证 Secret
 npm run deploy             # 构建并部署到 Workers
 ```
 
-本地数据库验证接口：`GET /api/settings`、`GET /api/settings?key=database-demo` 和 `PUT /api/settings/database-demo`。写入请求格式为 `{ "value": "..." }`。
-
 本地开发默认通过 `.dev.vars` 中的 `LOCAL_AUTH_BYPASS=true` 跳过登录。该开关只对 `localhost`、`127.0.0.1` 和 `::1` 生效，生产域名仍然必须使用 TOTP、导航 Token 或 API Token。需要在本地验证完整登录流程时，将它改为 `false` 并重启开发服务器。
 
 ## 目录约定
@@ -41,11 +39,11 @@ drizzle.config.ts          Drizzle Kit 配置
 
 API 统一放在 `/api` 下。新增业务服务时，在 `src/worker/routes` 增加路由模块，再由 `src/worker/index.ts` 挂载。
 
-前端 UI 统一使用 HeroUI v3。组件选型、样式边界和开发约定见 [docs/UI.md](./docs/UI.md)。
+前端 UI 统一使用 HeroUI v3。组件选型
 
 ## D1 配置
 
-当前配置使用一个本地专用的占位 database id，`wrangler dev` 和 `npm run db:migrate:local` 只操作本地 D1。连接真实 Cloudflare D1 时，替换 `database_id` 和 `database_name`，确认无 `remote` 后先执行 `npm run cf-typegen`、`npm run db:generate` 和本地迁移；明确需要线上数据时才使用 `npm run db:migrate:remote`。
+`wrangler dev` 和 `npm run db:migrate:local` 只操作本地 D1。先执行 `npm run cf-typegen`、`npm run db:generate` 和本地迁移；
 
 生产环境迁移使用 `npm run db:migrate:remote`，敏感信息使用 Wrangler secrets，不提交到仓库。
 
@@ -78,10 +76,6 @@ npx wrangler secret put API_TOKEN
 npm run auth:setup -- --write-dev-vars
 ```
 
-如果 `.dev.vars` 已存在，命令默认不会覆盖；明确需要重新生成时使用 `--force`。真实 Secret 不要提交到 Git、截图或聊天记录。重新生成 `TOTP_SECRET` 后，需要在验证器中重新扫描二维码；重新生成其他 Token 会让旧会话或旧 API 调用失效。
+如果 `.dev.vars` 已存在，命令默认不会覆盖；明确需要重新生成时使用 `--force`;
 
 部署到线上后，Secret 会保留在 Cloudflare Worker 上，普通 `npm run deploy` 不会清除它们。不同 Worker 或 Wrangler environment 需要分别设置。
-
-## 迁移范围
-
-当前工作区的迁移盘点和分阶段策略见 [MIGRATION.md](./MIGRATION.md)。源项目保持独立仓库，迁移按 API 合约、资源绑定、数据迁移、前端路由四个边界逐步进行。
