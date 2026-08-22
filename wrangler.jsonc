@@ -39,7 +39,7 @@
 	"d1_databases": [{
 		"binding": "DB",
 		"database_name": "jiaoshoujia",
-		"database_id": "00000000-0000-0000-0000-000000000001",
+		"database_id": "fdf10fb6-548b-4135-9e93-9dd20a1fd670",
 		"preview_database_id": "jiaoshoujia-local",
 		"migrations_dir": "./migrations"
 	}],
