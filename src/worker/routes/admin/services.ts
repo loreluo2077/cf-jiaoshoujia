@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import { log } from '../utils/controller-logger';
-import { ServiceCatalogService } from '../services/service-catalog';
-import type { WorkerEnv } from '../types';
-import { notFound } from '../errors/http';
+import { log } from '../../utils/controller-logger';
+import { ServiceCatalogService } from '../../services/service-catalog';
+import type { WorkerEnv } from '../../types';
+import { notFound } from '../../errors/http';
 
 export const serviceRoutes = new Hono<WorkerEnv>();
 const serviceCatalog = new ServiceCatalogService();

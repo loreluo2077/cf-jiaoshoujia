@@ -10,7 +10,7 @@ import type { RefundRequest, RefundResult, RefundSuccess, RefundFailure } from '
  * 退款服务，封装订单退款的完整业务逻辑：
  * 校验订单状态 → 调用支付 provider 退款 → 更新订单状态 → 写审计日志。
  *
- * @author Alfie
+ * 
  */
 export class RefundService {
 	private readonly orderDao;
@@ -28,7 +28,7 @@ export class RefundService {
 	 * 执行退款操作。
 	 *
 	 * @returns RefundSuccess 退款成功；RefundFailure 携带 HTTP 状态码和错误信息
-	 * @author Alfie
+	 * 
 	 */
 	async refund(input: RefundRequest): Promise<RefundResult> {
 		logBusiness({ message: `退款开始，orderId：${input.orderId}`, payload: { amount: input.amount, reason: input.reason } });

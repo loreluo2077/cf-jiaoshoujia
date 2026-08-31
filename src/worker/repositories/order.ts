@@ -44,7 +44,7 @@ export class OrderRepository {
 	/**
 	 * 分页查询订单，支持按状态、支付类型、用户 ID 过滤。
 	 * 采用内存过滤保持与现有行为一致（数据量小的场景）。
-	 * @author Alfie
+	 * 
 	 */
 	async findFiltered(filter: { status?: string; paymentType?: string; userId?: string; page: number; pageSize: number }) {
 		const all = await this.db.select().from(orders).orderBy(desc(orders.createdAt));

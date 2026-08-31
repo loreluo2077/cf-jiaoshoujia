@@ -1,4 +1,3 @@
-export * from './service-error';
 export * from './order-service';
 export * from './order-delivery-service';
 export { GatewayService, type GatewayProvider, type VerifiedNotification } from './gateway-service';

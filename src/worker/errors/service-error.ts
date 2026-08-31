@@ -1,4 +1,4 @@
-import { BusinessException, type AppErrorCode } from '../errors/app';
+import { BusinessException, type AppErrorCode } from './app';
 
 export class ServiceError extends BusinessException {
 	constructor(message: string, status: number, code: AppErrorCode = 'BUSINESS_ERROR', details?: unknown) {

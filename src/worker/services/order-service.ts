@@ -5,7 +5,7 @@ import { AuditLogRepository } from '../repositories/audit-log';
 import { OrderRepository } from '../repositories/order';
 import { ProviderRepository } from '../repositories/provider';
 import { selectPaymentProvider } from '../libs/payment/providers';
-import { ServiceError } from './service-error';
+import { ServiceError } from '../errors/service-error';
 import type { ManagedOrderRequest } from '../dto/order.dto';
 
 export class ManagedOrderError extends ServiceError {}

@@ -1,35 +1,26 @@
-import type { ServiceStatus, Service } from '../dto/service-catalog.dto';
-
-const services: Service[] = [
-	{
-		id: 'image-bed',
-		name: 'CloudFlare-ImgBed',
-		stack: 'Pages Functions + R2 + KV',
-		status: 'planned',
-		nextStep: '迁移上传、管理 API 和 R2/KV bindings',
-	},
-	{
-		id: 'card-life',
-		name: 'card-life',
-		stack: 'React + TanStack Start + D1',
-		status: 'planned',
-		nextStep: '迁移页面路由、认证和 D1 数据访问',
-	},
-	{
-		id: 'llm-proxy',
-		name: 'go-llm-proxy',
-		stack: 'Go + SQLite',
-		status: 'planned',
-		nextStep: '先定义 Hono API 合约，再按模块迁移代理逻辑',
-	},
-];
+import type { Service } from '../dto/service-catalog.dto';
 
 export class ServiceCatalogService {
 	list(): Service[] {
-		return services;
+		return [
+			{
+				id: 'payment-gateway',
+				name: '支付网关',
+				stack: 'Cloudflare Workers + D1',
+				status: 'ready',
+				nextStep: '持续优化',
+			},
+			{
+				id: 'admin-panel',
+				name: '管理后台',
+				stack: 'React + TypeScript',
+				status: 'ready',
+				nextStep: '功能完善',
+			},
+		];
 	}
 
 	findById(id: string): Service | undefined {
-		return services.find((service) => service.id === id);
+		return this.list().find(s => s.id === id);
 	}
 }

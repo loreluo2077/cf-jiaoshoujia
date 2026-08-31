@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import type { WorkerEnv } from '../types';
+import type { WorkerEnv } from '../../types';
 
 export const healthRoutes = new Hono<WorkerEnv>();
 

@@ -1,11 +1,11 @@
 import { Hono } from 'hono';
-import { hasAuthSecret } from '../libs/auth/constants';
-import { hasLocalAuthBypass } from '../libs/auth/local';
-import { clearSession, hasValidSession, issueSession } from '../libs/auth/session';
-import { isValidTotp } from '../libs/auth/totp';
-import { isValidNavigationToken } from '../libs/auth/token';
-import { log } from '../utils/controller-logger';
-import type { WorkerEnv } from '../types';
+import { hasAuthSecret } from '../../libs/auth/constants';
+import { hasLocalAuthBypass } from '../../libs/auth/local';
+import { clearSession, hasValidSession, issueSession } from '../../libs/auth/session';
+import { isValidTotp } from '../../libs/auth/totp';
+import { isValidNavigationToken } from '../../libs/auth/token';
+import { log } from '../../utils/controller-logger';
+import type { WorkerEnv } from '../../types';
 
 export const authRoutes = new Hono<WorkerEnv>();
 
