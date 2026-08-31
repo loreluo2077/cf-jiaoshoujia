@@ -146,6 +146,7 @@ export class EasyPayService {
 			orderType: 'easypay_bridge', subject: params.name, externalOrderNo: params.out_trade_no,
 			externalNotifyUrl: params.notify_url, externalReturnUrl: params.return_url, downstreamMerchantId: config.id,
 			clientIp: params.clientip, returnUrlForOrder: (orderId) => new URL(`/api/easypay/return/${orderId}`, requestUrl).toString(),
+			orderNo:params.out_trade_no
 		});
 	}
 

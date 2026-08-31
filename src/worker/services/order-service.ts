@@ -53,7 +53,7 @@ export class OrderService {
 			throw new ManagedOrderError(`amount must be between ${config.minAmount} and ${config.maxAmount}`, 422);
 		}
 
-		const orderId = crypto.randomUUID();
+		const orderId = input.orderNo ?? crypto.randomUUID();
 		const createdAt = new Date();
 		const expiresAt = new Date(createdAt.getTime() + (config?.orderTimeoutMinutes || 5) * 60_000);
 		const rechargeCode = `RP${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 7).toUpperCase()}`;

@@ -17,6 +17,7 @@ export interface ManagedOrderRequest {
 	srcUrl?: string;
 	returnUrlForOrder?: (orderId: string) => string;
 	downstreamMerchantId?: string;
+	orderNo?: string;
 }
 
 export type DeliverableOrder = {
