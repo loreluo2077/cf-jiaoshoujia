@@ -1,100 +1,41 @@
 import { Hono } from 'hono';
-import { createDb } from '../../../db/client';
-import { AppRepository } from '../../repositories/app';
-import { AuditLogRepository } from '../../repositories/audit-log';
-import { OrderRepository } from '../../repositories/order';
-import { ProviderRepository } from '../../repositories/provider';
-import { deliverPaidOrder } from '../../services/order-delivery-service';
-import { RefundService } from '../../services/refund-service';
-import { createPaymentProviders } from '../../payment/providers';
+import { AdminService } from '../../services/admin-service';
 import { sign } from '../../payment/downstream/easypay';
 import { easyPayBridgeRoutes } from '../downstream/easypay';
 
 export const adminGatewayRoutes = new Hono<{ Bindings: Env }>();
 
+const adminService = (env: Env) => new AdminService(env);
+
 adminGatewayRoutes.get('/dashboard', async (c) => {
-	const db = createDb(c.env.DB);
-	const appDao = new AppRepository(db);
-	const orderDao = new OrderRepository(db);
-	const app = await appDao.findByCode('default');
-	if (!app) return c.json({ orders: 0, paid: 0, revenue: 0 });
-	const rows = await orderDao.findByAppId(app.id);
-	return c.json({
-		orders: rows.length,
-		pending: rows.filter((r) => r.status === 'PENDING').length,
-		paid: rows.filter((r) => ['PAID', 'COMPLETED'].includes(r.status)).length,
-		revenue: rows.filter((r) => ['PAID', 'COMPLETED'].includes(r.status)).reduce((s, r) => s + Number(r.amount), 0),
-	});
+	const result = await adminService(c.env).dashboard();
+	return c.json(result);
 });
 
 adminGatewayRoutes.get('/payment-tests/config', async (c) => {
-	const db = createDb(c.env.DB);
-	const appDao = new AppRepository(db);
-	const providerDao = new ProviderRepository(db);
-	const app = await appDao.findByCode('default');
-	if (!app) return c.json({ error: 'default app not found' }, 404);
-	const cfg = await appDao.findConfig(app.id);
-	const providers = await providerDao.findByAppId(app.id);
-	const enabledPaymentTypes = Array.from(
-		new Set(
-			(cfg?.enabledPaymentTypes || '')
-				.split(',')
-				.map((v) => v.trim())
-				.filter(Boolean)
-				.map((v) => (v === 'alipay_direct' ? 'alipay' : v === 'wxpay_direct' ? 'wxpay' : v))
-				.filter((v) => ['alipay', 'wxpay', 'stripe'].includes(v)),
-		),
-	);
-	return c.json({
-		app: { name: app.name },
-		apps: [app],
-		enabledPaymentTypes,
-		paymentProviders: providers.map(({ config: _config, ...p }) => p),
-		minAmount: Number(cfg?.minAmount || 1),
-		maxAmount: Number(cfg?.maxAmount || 1000),
-		orderTimeoutMinutes: cfg?.orderTimeoutMinutes || 5,
-		balanceDisabled: Boolean(cfg?.balanceDisabled),
-	});
+	const result = await adminService(c.env).paymentTestConfig();
+	if (!result) return c.json({ error: 'default app not found' }, 404);
+	return c.json(result);
 });
 
 adminGatewayRoutes.get('/payment-tests/orders/:id', async (c) => {
-	const db = createDb(c.env.DB);
-	const orderDao = new OrderRepository(db);
-	const row = await orderDao.findById(c.req.param('id'));
+	const row = await adminService(c.env).findOrder(c.req.param('id'));
 	if (!row) return c.json({ error: 'Order not found' }, 404);
-	return c.json({
-		order: {
-			...row,
-			amount: Number(row.amount),
-			payAmount: Number(row.payAmount),
-			expiresAt: row.expiresAt.toISOString(),
-			paidAt: row.paidAt?.toISOString() || null,
-		},
-	});
+	return c.json({ order: { ...row, amount: Number(row.amount), payAmount: Number(row.payAmount), expiresAt: row.expiresAt.toISOString(), paidAt: row.paidAt?.toISOString() || null } });
 });
 
 adminGatewayRoutes.post('/payment-tests/orders/:id/cancel', async (c) => {
-	const db = createDb(c.env.DB);
-	const orderDao = new OrderRepository(db);
-	const cancelled = await orderDao.cancelPending(c.req.param('id'));
+	const cancelled = await adminService(c.env).cancelOrder(c.req.param('id'));
 	if (!cancelled) return c.json({ error: 'Only pending orders can be cancelled' }, 409);
 	return c.json({ status: 'CANCELLED' });
 });
 
-adminGatewayRoutes.get('/apps', async (c) => {
-	const db = createDb(c.env.DB);
-	const appDao = new AppRepository(db);
-	const rows = await appDao.findAll();
-	return c.json({ apps: rows });
-});
+adminGatewayRoutes.get('/apps', async (c) => c.json({ apps: await adminService(c.env).listApps() }));
 
 adminGatewayRoutes.get('/apps/:id', async (c) => {
-	const db = createDb(c.env.DB);
-	const appDao = new AppRepository(db);
-	const app = await appDao.findById(c.req.param('id'));
-	if (!app) return c.json({ error: 'App not found' }, 404);
-	const config = await appDao.findConfig(app.id);
-	return c.json({ app, config });
+	const result = await adminService(c.env).getApp(c.req.param('id'));
+	if (!result) return c.json({ error: 'App not found' }, 404);
+	return c.json(result);
 });
 
 adminGatewayRoutes.patch('/apps/:id', async (c) => {
@@ -123,83 +64,43 @@ adminGatewayRoutes.put('/apps/:id/config', async (c) => {
 });
 
 adminGatewayRoutes.get('/orders', async (c) => {
-	const db = createDb(c.env.DB);
-	const orderDao = new OrderRepository(db);
 	const page = Math.max(1, Number(c.req.query('page')) || 1);
 	const pageSize = Math.min(500, Math.max(1, Number(c.req.query('page_size') || c.req.query('limit')) || 50));
-	const status = c.req.query('status');
-	const paymentType = c.req.query('payment_type');
-	const userId = c.req.query('user_id');
-	const { rows, total } = await orderDao.findFiltered({ status, paymentType, userId, page, pageSize });
-	return c.json({
-		orders: rows,
-		pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
-	});
+	const { rows, total } = await adminService(c.env).listOrders({ status: c.req.query('status'), paymentType: c.req.query('payment_type'), userId: c.req.query('user_id'), page, pageSize });
+	return c.json({ orders: rows, pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } });
 });
 
 adminGatewayRoutes.get('/providers', async (c) => {
-	const db = createDb(c.env.DB);
-	const providerDao = new ProviderRepository(db);
-	const rows = await providerDao.findAll();
+	const rows = await adminService(c.env).listProviders();
 	return c.json({ providers: rows.map(({ config: _config, ...provider }) => provider) });
 });
 
 adminGatewayRoutes.get('/providers/:id', async (c) => {
-	const db = createDb(c.env.DB);
-	const providerDao = new ProviderRepository(db);
-	const appDao = new AppRepository(db);
-	const provider = await providerDao.findById(c.req.param('id'));
-	if (!provider) return c.json({ error: 'Provider not found' }, 404);
-	const app = await appDao.findById(provider.appId);
-	let config: Record<string, unknown> = {};
-	try {
-		config = JSON.parse(provider.config || '{}') as Record<string, unknown>;
-	} catch {
-		config = {};
-	}
-	return c.json({ provider: { ...provider, config }, app });
+	const result = await adminService(c.env).getProvider(c.req.param('id'));
+	if (!result) return c.json({ error: 'Provider not found' }, 404);
+	return c.json(result);
 });
 
 adminGatewayRoutes.post('/providers', async (c) => {
-	const b = await c.req.json<Record<string, unknown>>().catch(() => ({}) as Record<string, unknown>);
+	const b = await c.req.json<Record<string, unknown>>().catch(() => ({} as Record<string, unknown>));
 	const name = String(b.name || '').trim();
 	const providerKey = String(b.providerKey || '').trim();
 	if (!name || !providerKey) return c.json({ error: 'providerKey and name are required' }, 400);
-	const db = createDb(c.env.DB);
-	const appDao = new AppRepository(db);
-	const providerDao = new ProviderRepository(db);
-	const app = await appDao.findByCode('default');
-	if (!app) return c.json({ error: 'default app not found' }, 404);
-	const t = new Date();
-	const provider = {
-		id: crypto.randomUUID(),
-		appId: app.id,
-		providerKey,
-		name,
-		config: typeof b.config === 'string' ? b.config : JSON.stringify(b.config || {}),
-		supportedTypes: String(b.supportedTypes || ''),
-		enabled: b.enabled !== false,
-		sortOrder: Number(b.sortOrder) || 0,
-		limits: null,
-		refundEnabled: b.refundEnabled === true,
-		createdAt: t,
-		updatedAt: t,
-	};
-	await providerDao.insert(provider);
+	const provider = await adminService(c.env).createProvider({
+		name, providerKey, config: typeof b.config === 'string' ? b.config : JSON.stringify(b.config || {}),
+		supportedTypes: String(b.supportedTypes || ''), enabled: b.enabled !== false, sortOrder: Number(b.sortOrder) || 0, refundEnabled: b.refundEnabled === true,
+	});
+	if (!provider) return c.json({ error: 'default app not found' }, 404);
 	return c.json({ provider }, 201);
 });
 
 adminGatewayRoutes.put('/config', async (c) => {
-	const b = await c.req.json<Record<string, unknown>>().catch(() => ({}) as Record<string, unknown>);
-	const db = createDb(c.env.DB);
-	const appDao = new AppRepository(db);
-	const app = await appDao.findByCode('default');
-	if (!app) return c.json({ error: 'default app not found' }, 404);
+	const b = await c.req.json<Record<string, unknown>>().catch(() => ({} as Record<string, unknown>));
 	const patch: Record<string, unknown> = { updatedAt: new Date() };
 	if (typeof b.enabledPaymentTypes === 'string') patch.enabledPaymentTypes = b.enabledPaymentTypes;
 	if (Number.isFinite(Number(b.minAmount))) patch.minAmount = Number(b.minAmount).toFixed(2);
 	if (Number.isFinite(Number(b.maxAmount))) patch.maxAmount = Number(b.maxAmount).toFixed(2);
-	await appDao.updateConfig(app.id, patch);
+	if (!await adminService(c.env).updateDefaultConfig(patch)) return c.json({ error: 'default app not found' }, 404);
 	return c.json({ ok: true });
 });
 
@@ -288,8 +189,7 @@ adminGatewayRoutes.post('/payment-tests/downstream', async (c) => {
 
 adminGatewayRoutes.post('/refunds', async (c) => {
 	const b = await c.req.json<Record<string, unknown>>().catch(() => ({}) as Record<string, unknown>);
-	const refundService = new RefundService(c.env);
-	const result = await refundService.refund({
+	const result = await adminService(c.env).refund({
 		orderId: String(b.orderId || ''),
 		amount: b.amount !== undefined ? Number(b.amount) : undefined,
 		reason: typeof b.reason === 'string' ? b.reason : undefined,
@@ -300,10 +200,7 @@ adminGatewayRoutes.post('/refunds', async (c) => {
 });
 
 adminGatewayRoutes.post('/orders/:id/retry-notification', async (c) => {
-	const db = createDb(c.env.DB);
-	const orderDao = new OrderRepository(db);
-	const order = await orderDao.findById(c.req.param('id'));
-	if (!order || !['PAID', 'RECHARGING'].includes(order.status)) return c.json({ error: 'Order is not awaiting settlement' }, 409);
-	const status = await deliverPaidOrder(c.env, order, db);
+	const status = await adminService(c.env).retryNotification(c.req.param('id'));
+	if (!status) return c.json({ error: 'Order is not awaiting settlement' }, 409);
 	return status === 'COMPLETED' ? c.json({ ok: true, status }) : c.json({ error: 'Notification retry failed', status }, 502);
 });

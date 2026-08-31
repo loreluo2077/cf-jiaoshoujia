@@ -1,4 +1,4 @@
-// @ts-nocheck EasyPay payloads are dynamic at this protocol boundary.
+// EasyPay protocol payloads are handled at this route boundary.
 import { eq, or } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { createDb } from '../../../db/client';
@@ -211,6 +211,7 @@ easyPayBridgeRoutes.get('/return/:orderId', async (c) => {
 	if (!order || order.orderType !== 'easypay_bridge' || !order.externalOrderNo || !validHttpUrl(order.externalReturnUrl || '')) {
 		return c.text('Order not found', 404);
 	}
+	const returnUrl = order.externalReturnUrl || '';
 	const paid = ['PAID', 'RECHARGING', 'COMPLETED', 'REFUNDED'].includes(order.status);
 	const params: Record<string, string> = {
 		pid: config.pid,
@@ -223,7 +224,7 @@ easyPayBridgeRoutes.get('/return/:orderId', async (c) => {
 	};
 	params.sign = sign(params, config.key);
 	params.sign_type = 'MD5';
-	const target = new URL(order.externalReturnUrl);
+	const target = new URL(returnUrl);
 	for (const [key, value] of Object.entries(params)) target.searchParams.set(key, value);
 	return c.redirect(target.toString(), 302);
 });
