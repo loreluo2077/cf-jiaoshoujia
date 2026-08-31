@@ -33,7 +33,7 @@ export function useAuth() {
 	useEffect(() => {
 		const checkAuth = async () => {
 			try {
-				const response = await fetch('/api/auth/check');
+				const response = await fetch('/api/auth/session');
 				const result = await response.json() as { authenticated: boolean };
 				setAuthState(result.authenticated ? 'authenticated' : 'required');
 			} catch {
