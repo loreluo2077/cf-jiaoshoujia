@@ -14,6 +14,7 @@ describe('application API', () => {
 		const response = await SELF.fetch('https://example.com/api/health');
 
 		expect(response.status).toBe(200);
+		expect(response.headers.get('x-request-id')).toBeTruthy();
 		expect(await response.json()).toMatchObject({ status: 'ok', service: 'jiaoshoujia' });
 	});
 
@@ -43,6 +44,31 @@ describe('application API', () => {
 		expect(secondWrite.status).toBe(200);
 		expect(read.status).toBe(200);
 		expect(body.settings).toEqual([{ key: 'database-test', value: 'updated value', updatedAt: expect.any(String) }]);
+	});
+
+	it('rejects unauthenticated settings access', async () => {
+		const response = await SELF.fetch('https://example.com/api/settings');
+		expect(response.status).toBe(401);
+		expect(await response.json()).toEqual({ error: 'Unauthorized', message: 'Unauthorized' });
+	});
+
+	it('rejects invalid settings input at the API boundary', async () => {
+		const invalidJson = await SELF.fetch('https://example.com/api/settings/invalid key', { method: 'PUT', headers: { ...apiHeaders, 'content-type': 'application/json' }, body: '{' });
+		const invalidValue = await SELF.fetch('https://example.com/api/settings/invalid-key', { method: 'PUT', headers: { ...apiHeaders, 'content-type': 'application/json' }, body: JSON.stringify({ value: '   ' }) });
+		const invalidKey = await SELF.fetch('https://example.com/api/settings/invalid%20key', { method: 'PUT', headers: { ...apiHeaders, 'content-type': 'application/json' }, body: JSON.stringify({ value: 'ok' }) });
+
+		expect(invalidJson.status).toBe(400);
+		expect(invalidValue.status).toBe(400);
+		expect(invalidKey.status).toBe(400);
+		expect(await invalidJson.json()).toMatchObject({ error: 'BAD_REQUEST' });
+		expect(await invalidValue.json()).toMatchObject({ error: 'BAD_REQUEST' });
+		expect(await invalidKey.json()).toMatchObject({ error: 'BAD_REQUEST' });
+	});
+
+	it('returns an empty collection for an unknown setting key', async () => {
+		const response = await SELF.fetch('https://example.com/api/settings?key=missing-setting', { headers: apiHeaders });
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({ settings: [] });
 	});
 
 	it('rejects an invalid TOTP code', async () => {
