@@ -4,7 +4,8 @@ import { OrderRepository } from '../repositories/order';
 import { ProviderRepository } from '../repositories/provider';
 import { MerchantRepository } from '../repositories/merchant';
 import { deliverPaidOrder } from './order-delivery-service';
-import { RefundService, type RefundRequest } from './refund-service';
+import { RefundService } from './refund-service';
+import type { RefundRequest } from '../dto/refund.dto';
 
 export class AdminService {
 	private readonly apps: AppRepository;
@@ -53,6 +54,7 @@ export class AdminService {
 	}
 
 	findOrder(id: string) { return this.orders.findById(id); }
+	findOrderByExternalNo(externalOrderNo: string) { return this.orders.findByExternalOrderNo(externalOrderNo); }
 	cancelOrder(id: string) { return this.orders.cancelPending(id); }
 	listApps() { return this.apps.findAll(); }
 	async getApp(id: string) {

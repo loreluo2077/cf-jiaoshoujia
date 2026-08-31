@@ -1,12 +1,6 @@
 import { Hono, type Context } from 'hono';
-import { GATEWAY_PROVIDER, GATEWAY_RESULT_CODE } from '../../services/gateway-constants';
-import { GatewayService, type GatewayProvider, type GatewayResult } from '../../services/gateway-service';
-import { createDb } from '../../../db/client';
-import { AuditLogRepository } from '../../repositories/audit-log';
-import { OrderRepository } from '../../repositories/order';
-import { ProviderRepository } from '../../repositories/provider';
-import { MerchantRepository } from '../../repositories/merchant';
-import { OrderDeliveryService } from '../../services/order-delivery-service';
+import { GATEWAY_PROVIDER, GATEWAY_RESULT_CODE, type GatewayProvider, type GatewayResult } from '../../dto/gateway.dto';
+import { GatewayService } from '../../services/gateway-service';
 import { log } from '../../utils/controller-logger';
 import type { WorkerEnv } from '../../types';
 
@@ -26,27 +20,26 @@ gatewayRoutes.post('/notify/alipay', (c) => handleCallback(c, GATEWAY_PROVIDER.A
 gatewayRoutes.post('/notify/wxpay', (c) => handleCallback(c, GATEWAY_PROVIDER.WXPAY));
 gatewayRoutes.post('/notify/stripe', (c) => handleCallback(c, GATEWAY_PROVIDER.STRIPE));
 
-async function handleCallback(c: GatewayContext, provider: GatewayProvider, providerKey?: string) {
+async function handleCallback(c: GatewayContext, provider: GatewayProvider) {
 	const body = await c.req.text();
 	const requestId = c.get('requestId');
 	log('GatewayController', '入参', requestId, {
-		provider: providerKey || provider,
+		provider:  provider,
 		contentTypePresent: Boolean(c.req.header('content-type')),
 		contentLength: new TextEncoder().encode(body).byteLength,
 	});
 	if (!body.trim()) {
-		log('GatewayController', '出参', requestId, { result: GATEWAY_RESULT_CODE.INVALID_NOTIFICATION });
+		log('GatewayController', '出参', requestId, { result: "body is empty" });
 		return respond(c, provider, { code: GATEWAY_RESULT_CODE.INVALID_NOTIFICATION });
 	}
 	const result = await new GatewayService(c.env).handleNotification({
 		provider,
-		providerKey,
 		body,
 		headers: c.req.raw.headers,
 		requestUrl: c.req.url,
 	});
 	log('GatewayController', '出参', requestId, {
-		provider: providerKey || provider,
+		provider:  provider,
 		result: result.code,
 		orderId: 'orderId' in result ? result.orderId : undefined,
 		claimed: 'claimed' in result ? result.claimed : undefined,
@@ -55,41 +48,65 @@ async function handleCallback(c: GatewayContext, provider: GatewayProvider, prov
 }
 
 function respond(c: GatewayContext, provider: GatewayProvider, result: GatewayResult) {
+	// 成功响应
+	if (result.code === GATEWAY_RESULT_CODE.ACCEPTED) {
+		if (provider === GATEWAY_PROVIDER.XUNHUPAY || provider === GATEWAY_PROVIDER.ALIPAY) {
+			return c.text('success');
+		}
+		if (provider === GATEWAY_PROVIDER.STRIPE) {
+			return c.json({ received: true });
+		}
+		return c.json({ ok: true });
+	}
+
+	// 错误响应
+	const errorMap: Record<string, { status: number; messages: Record<string, string> }> = {
+		[GATEWAY_RESULT_CODE.PROVIDER_NOT_CONFIGURED]: {
+			status: HTTP_STATUS.SERVICE_UNAVAILABLE,
+			messages: {
+				[GATEWAY_PROVIDER.XUNHUPAY]: 'fail',
+				[GATEWAY_PROVIDER.ALIPAY]: 'fail',
+				[GATEWAY_PROVIDER.WXPAY]: 'Wechat Pay is not configured',
+				[GATEWAY_PROVIDER.STRIPE]: 'Stripe is not configured',
+				default: 'Generic provider is not configured',
+			},
+		},
+		[GATEWAY_RESULT_CODE.ORDER_NOT_FOUND]: {
+			status: HTTP_STATUS.NOT_FOUND,
+			messages: {
+				[GATEWAY_PROVIDER.XUNHUPAY]: 'fail',
+				[GATEWAY_PROVIDER.ALIPAY]: 'fail',
+				default: 'Order not found',
+			},
+		},
+		[GATEWAY_RESULT_CODE.INVALID_NOTIFICATION]: {
+			status: HTTP_STATUS.BAD_REQUEST,
+			messages: {
+				[GATEWAY_PROVIDER.XUNHUPAY]: 'fail',
+				[GATEWAY_PROVIDER.ALIPAY]: 'fail',
+				[GATEWAY_PROVIDER.WXPAY]: 'Invalid Wechat Pay notification',
+				[GATEWAY_PROVIDER.STRIPE]: 'Invalid Stripe webhook',
+				default: 'Invalid notification',
+			},
+		},
+		[GATEWAY_RESULT_CODE.ORDER_MISMATCH]: {
+			status: HTTP_STATUS.BAD_REQUEST,
+			messages: {
+				[GATEWAY_PROVIDER.XUNHUPAY]: 'fail',
+				[GATEWAY_PROVIDER.ALIPAY]: 'fail',
+				default: 'Notification amount mismatch',
+			},
+		},
+	};
+
+	const errorConfig = errorMap[result.code];
+	const message = (errorConfig.messages as any)[provider] || errorConfig.messages.default;
+
+	// 文本协议：支付宝、虎皮椒
 	if (provider === GATEWAY_PROVIDER.XUNHUPAY || provider === GATEWAY_PROVIDER.ALIPAY) {
-		if (result.code === GATEWAY_RESULT_CODE.ACCEPTED) return c.text('success');
-		return c.text(
-			'fail',
-			result.code === GATEWAY_RESULT_CODE.PROVIDER_NOT_CONFIGURED
-				? HTTP_STATUS.SERVICE_UNAVAILABLE
-				: result.code === GATEWAY_RESULT_CODE.ORDER_NOT_FOUND
-					? HTTP_STATUS.NOT_FOUND
-					: HTTP_STATUS.BAD_REQUEST,
-		);
+		return c.text(message as string, errorConfig.status as any);
 	}
-	if (provider === GATEWAY_PROVIDER.WXPAY) {
-		if (result.code === GATEWAY_RESULT_CODE.ACCEPTED) return c.json({ ok: true });
-		if (result.code === GATEWAY_RESULT_CODE.PROVIDER_NOT_CONFIGURED)
-			return c.json({ error: 'Wechat Pay is not configured' }, HTTP_STATUS.SERVICE_UNAVAILABLE);
-		return c.json(
-			{ error: result.code === GATEWAY_RESULT_CODE.INVALID_NOTIFICATION ? 'Invalid Wechat Pay notification' : 'Notification mismatch' },
-			HTTP_STATUS.BAD_REQUEST,
-		);
-	}
-	if (provider === GATEWAY_PROVIDER.STRIPE) {
-		if (result.code === GATEWAY_RESULT_CODE.ACCEPTED) return c.json({ received: true });
-		if (result.code === GATEWAY_RESULT_CODE.PROVIDER_NOT_CONFIGURED)
-			return c.json({ error: 'Stripe is not configured' }, HTTP_STATUS.SERVICE_UNAVAILABLE);
-		return c.json(
-			{ error: result.code === GATEWAY_RESULT_CODE.INVALID_NOTIFICATION ? 'Invalid Stripe webhook' : 'Notification mismatch' },
-			HTTP_STATUS.BAD_REQUEST,
-		);
-	}
-	if (result.code === GATEWAY_RESULT_CODE.ACCEPTED) return c.json({ ok: true });
-	if (result.code === GATEWAY_RESULT_CODE.PROVIDER_NOT_CONFIGURED)
-		return c.json({ error: 'Generic provider is not configured' }, HTTP_STATUS.SERVICE_UNAVAILABLE);
-	if (result.code === GATEWAY_RESULT_CODE.ORDER_NOT_FOUND) return c.json({ error: 'Order not found' }, HTTP_STATUS.NOT_FOUND);
-	return c.json(
-		{ error: result.code === GATEWAY_RESULT_CODE.ORDER_MISMATCH ? 'Notification amount mismatch' : 'Invalid notification' },
-		HTTP_STATUS.BAD_REQUEST,
-	);
+
+	// JSON 协议：微信、Stripe、通用
+	return c.json({ error: message as string }, errorConfig.status as any);
 }

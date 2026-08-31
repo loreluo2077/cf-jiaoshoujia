@@ -6,25 +6,7 @@ import { OrderRepository } from '../repositories/order';
 import { ProviderRepository } from '../repositories/provider';
 import { selectPaymentProvider } from '../payment/providers';
 import { ServiceError } from './service-error';
-
-export interface ManagedOrderRequest {
-	amount: number;
-	paymentType: string;
-	userId: string;
-	userEmail?: string;
-	appCode?: string;
-	appId?: string;
-	orderType?: string;
-	subject?: string;
-	externalOrderNo?: string;
-	externalNotifyUrl?: string;
-	externalReturnUrl?: string;
-	clientIp?: string;
-	srcHost?: string;
-	srcUrl?: string;
-	returnUrlForOrder?: (orderId: string) => string;
-	downstreamMerchantId?: string;
-}
+import type { ManagedOrderRequest } from '../dto/order.dto';
 
 export class ManagedOrderError extends ServiceError {}
 
@@ -56,8 +38,7 @@ export class OrderService {
 
 	async createManagedOrder(requestUrl: string, input: ManagedOrderRequest) {
 		logBusiness({
-			action: 'CREATE_ORDER',
-			phase: '入参',
+			message: '创建订单开始',
 			payload: { paymentType: input.paymentType, amount: input.amount, orderType: input.orderType, externalOrderNo: input.externalOrderNo },
 		});
 		const app = await this.getOrCreateApp(input.appCode, input.appId);
@@ -153,7 +134,7 @@ export class OrderService {
 			} catch (error) {
 				const reason = error instanceof Error ? error.message : 'payment provider error';
 				await this.orderDao.update(orderId, { status: 'FAILED', paymentStatus: 'FAILED', failedReason: reason, updatedAt: new Date() });
-				logBusiness({ action: 'CREATE_ORDER', orderId, phase: '失败', error: reason });
+				logBusiness({ message: `创建订单失败，orderId：${orderId}`, error: reason });
 				throw new ManagedOrderError(reason, 502);
 			}
 		}
@@ -167,13 +148,11 @@ export class OrderService {
 				failedReason: 'payment provider is not configured',
 				updatedAt: new Date(),
 			});
-			logBusiness({ action: 'CREATE_ORDER', orderId, phase: '失败', error: 'payment provider is not configured' });
+			logBusiness({ message: `创建订单失败，orderId：${orderId}`, error: 'payment provider is not configured' });
 			throw new ManagedOrderError('payment provider is not configured', 503);
 		}
 		logBusiness({
-			action: 'CREATE_ORDER',
-			orderId,
-			phase: '成功',
+			message: `创建订单成功，orderId：${orderId}`,
 			payload: { paymentType: input.paymentType, amount: input.amount, provider: row.providerInstanceId },
 		});
 		return { order: row, statusAccessToken: rechargeCode };

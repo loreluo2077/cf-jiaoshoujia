@@ -1,8 +1,7 @@
 import { hasLocalAuthBypass } from '../auth/local';
 import { isValidApiToken, isValidNavigationToken } from '../auth/token';
 import { isValidTotp } from '../auth/totp';
-
-export type AuthConfig = { totpSecret?: string; navigationToken?: string; sessionSecret?: string; apiToken?: string };
+import type { AuthConfig } from '../dto/auth.dto';
 
 export class AuthService {
 	isTotpConfigured(config: AuthConfig): boolean {

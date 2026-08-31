@@ -1,55 +1,91 @@
 import { Hono } from 'hono';
 import { AdminService } from '../../services/admin-service';
-import { sign } from '../../payment/downstream/easypay';
+import { EasyPayService } from '../../services/easypay-service';
 import { easyPayBridgeRoutes } from '../downstream/easypay';
+import { log } from '../../utils/controller-logger';
+import type { WorkerEnv } from '../../types';
+import { badRequest, notFound, serviceUnavailable } from '../../errors/http';
 
-export const adminGatewayRoutes = new Hono<{ Bindings: Env }>();
+export const adminGatewayRoutes = new Hono<WorkerEnv>();
 
-const adminService = (env: Env) => new AdminService(env);
+const getService = (env: Env) => new AdminService(env);
 
 adminGatewayRoutes.get('/dashboard', async (c) => {
-	const result = await adminService(c.env).dashboard();
+	log('AdminController', '入参', c.get('requestId'), { path: '/dashboard' });
+	const result = await getService(c.env).dashboard();
+	log('AdminController', '出参', c.get('requestId'), result);
 	return c.json(result);
 });
 
 adminGatewayRoutes.get('/payment-tests/config', async (c) => {
-	const result = await adminService(c.env).paymentTestConfig();
-	if (!result) return c.json({ error: 'default app not found' }, 404);
+	log('AdminController', '入参', c.get('requestId'), { path: '/payment-tests/config' });
+	const result = await getService(c.env).paymentTestConfig();
+	if (!result) {
+		log('AdminController', '出参', c.get('requestId'), { error: 'APP_NOT_FOUND' });
+		throw notFound('default app not found');
+	}
+	log('AdminController', '出参', c.get('requestId'), { found: true });
 	return c.json(result);
 });
 
 adminGatewayRoutes.get('/payment-tests/orders/:id', async (c) => {
-	const row = await adminService(c.env).findOrder(c.req.param('id'));
-	if (!row) return c.json({ error: 'Order not found' }, 404);
+	const id = c.req.param('id');
+	log('AdminController', '入参', c.get('requestId'), { id: { present: id.length > 0 } });
+	const row = await getService(c.env).findOrder(id);
+	if (!row) {
+		log('AdminController', '出参', c.get('requestId'), { error: 'ORDER_NOT_FOUND' });
+		throw notFound('Order not found');
+	}
+	log('AdminController', '出参', c.get('requestId'), { found: true });
 	return c.json({ order: { ...row, amount: Number(row.amount), payAmount: Number(row.payAmount), expiresAt: row.expiresAt.toISOString(), paidAt: row.paidAt?.toISOString() || null } });
 });
 
 adminGatewayRoutes.post('/payment-tests/orders/:id/cancel', async (c) => {
-	const cancelled = await adminService(c.env).cancelOrder(c.req.param('id'));
-	if (!cancelled) return c.json({ error: 'Only pending orders can be cancelled' }, 409);
+	const id = c.req.param('id');
+	log('AdminController', '入参', c.get('requestId'), { id: { present: id.length > 0 } });
+	const cancelled = await getService(c.env).cancelOrder(id);
+	if (!cancelled) {
+		log('AdminController', '出参', c.get('requestId'), { error: 'ORDER_STATE_CONFLICT' });
+		return c.json({ error: 'Only pending orders can be cancelled' }, 409);
+	}
+	log('AdminController', '出参', c.get('requestId'), { status: 'CANCELLED' });
 	return c.json({ status: 'CANCELLED' });
 });
 
-adminGatewayRoutes.get('/apps', async (c) => c.json({ apps: await adminService(c.env).listApps() }));
+adminGatewayRoutes.get('/apps', async (c) => {
+	log('AdminController', '入参', c.get('requestId'), { path: '/apps' });
+	const apps = await getService(c.env).listApps();
+	log('AdminController', '出参', c.get('requestId'), { count: apps.length });
+	return c.json({ apps });
+});
 
 adminGatewayRoutes.get('/apps/:id', async (c) => {
-	const result = await adminService(c.env).getApp(c.req.param('id'));
-	if (!result) return c.json({ error: 'App not found' }, 404);
+	const id = c.req.param('id');
+	log('AdminController', '入参', c.get('requestId'), { id: { present: id.length > 0 } });
+	const result = await getService(c.env).getApp(id);
+	if (!result) {
+		log('AdminController', '出参', c.get('requestId'), { error: 'APP_NOT_FOUND' });
+		throw notFound('App not found');
+	}
+	log('AdminController', '出参', c.get('requestId'), { found: true });
 	return c.json(result);
 });
 
 adminGatewayRoutes.patch('/apps/:id', async (c) => {
+	const id = c.req.param('id');
+	log('AdminController', '入参', c.get('requestId'), { id: { present: id.length > 0 } });
 	const body = await c.req.json<Record<string, unknown>>().catch(() => ({}) as Record<string, unknown>);
 	const patch: Partial<{ name: string; status: string; updatedAt: Date }> = { updatedAt: new Date() };
 	if (typeof body.name === 'string' && body.name.trim()) patch.name = body.name.trim();
 	if (typeof body.status === 'string' && ['active', 'paused'].includes(body.status)) patch.status = body.status;
-	const db = createDb(c.env.DB);
-	const appDao = new AppRepository(db);
-	await appDao.update(c.req.param('id'), patch);
+	await getService(c.env).updateApp(id, patch);
+	log('AdminController', '出参', c.get('requestId'), { ok: true });
 	return c.json({ ok: true });
 });
 
 adminGatewayRoutes.put('/apps/:id/config', async (c) => {
+	const id = c.req.param('id');
+	log('AdminController', '入参', c.get('requestId'), { id: { present: id.length > 0 } });
 	const b = await c.req.json<Record<string, unknown>>().catch(() => ({}) as Record<string, unknown>);
 	const patch: Record<string, unknown> = { updatedAt: new Date() };
 	if (typeof b.enabledPaymentTypes === 'string') patch.enabledPaymentTypes = b.enabledPaymentTypes;
@@ -57,27 +93,36 @@ adminGatewayRoutes.put('/apps/:id/config', async (c) => {
 	if (Number.isFinite(Number(b.maxAmount))) patch.maxAmount = Number(b.maxAmount).toFixed(2);
 	if (Number.isFinite(Number(b.orderTimeoutMinutes))) patch.orderTimeoutMinutes = Math.max(1, Math.trunc(Number(b.orderTimeoutMinutes)));
 	if (typeof b.balanceDisabled === 'boolean') patch.balanceDisabled = b.balanceDisabled;
-	const db = createDb(c.env.DB);
-	const appDao = new AppRepository(db);
-	await appDao.updateConfig(c.req.param('id'), patch);
+	await getService(c.env).updateAppConfig(id, patch);
+	log('AdminController', '出参', c.get('requestId'), { ok: true });
 	return c.json({ ok: true });
 });
 
 adminGatewayRoutes.get('/orders', async (c) => {
 	const page = Math.max(1, Number(c.req.query('page')) || 1);
 	const pageSize = Math.min(500, Math.max(1, Number(c.req.query('page_size') || c.req.query('limit')) || 50));
-	const { rows, total } = await adminService(c.env).listOrders({ status: c.req.query('status'), paymentType: c.req.query('payment_type'), userId: c.req.query('user_id'), page, pageSize });
+	log('AdminController', '入参', c.get('requestId'), { page, pageSize, filters: { status: c.req.query('status'), paymentType: c.req.query('payment_type') } });
+	const { rows, total } = await getService(c.env).listOrders({ status: c.req.query('status'), paymentType: c.req.query('payment_type'), userId: c.req.query('user_id'), page, pageSize });
+	log('AdminController', '出参', c.get('requestId'), { count: rows.length, total });
 	return c.json({ orders: rows, pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } });
 });
 
 adminGatewayRoutes.get('/providers', async (c) => {
-	const rows = await adminService(c.env).listProviders();
+	log('AdminController', '入参', c.get('requestId'), { path: '/providers' });
+	const rows = await getService(c.env).listProviders();
+	log('AdminController', '出参', c.get('requestId'), { count: rows.length });
 	return c.json({ providers: rows.map(({ config: _config, ...provider }) => provider) });
 });
 
 adminGatewayRoutes.get('/providers/:id', async (c) => {
-	const result = await adminService(c.env).getProvider(c.req.param('id'));
-	if (!result) return c.json({ error: 'Provider not found' }, 404);
+	const id = c.req.param('id');
+	log('AdminController', '入参', c.get('requestId'), { id: { present: id.length > 0 } });
+	const result = await getService(c.env).getProvider(id);
+	if (!result) {
+		log('AdminController', '出参', c.get('requestId'), { error: 'PROVIDER_NOT_FOUND' });
+		throw notFound('Provider not found');
+	}
+	log('AdminController', '出参', c.get('requestId'), { found: true });
 	return c.json(result);
 });
 
@@ -85,28 +130,43 @@ adminGatewayRoutes.post('/providers', async (c) => {
 	const b = await c.req.json<Record<string, unknown>>().catch(() => ({} as Record<string, unknown>));
 	const name = String(b.name || '').trim();
 	const providerKey = String(b.providerKey || '').trim();
-	if (!name || !providerKey) return c.json({ error: 'providerKey and name are required' }, 400);
-	const provider = await adminService(c.env).createProvider({
+	log('AdminController', '入参', c.get('requestId'), { name: { present: name.length > 0 }, providerKey: { present: providerKey.length > 0 } });
+	if (!name || !providerKey) {
+		log('AdminController', '出参', c.get('requestId'), { error: 'VALIDATION_ERROR' });
+		throw badRequest('providerKey and name are required');
+	}
+	const provider = await getService(c.env).createProvider({
 		name, providerKey, config: typeof b.config === 'string' ? b.config : JSON.stringify(b.config || {}),
 		supportedTypes: String(b.supportedTypes || ''), enabled: b.enabled !== false, sortOrder: Number(b.sortOrder) || 0, refundEnabled: b.refundEnabled === true,
 	});
-	if (!provider) return c.json({ error: 'default app not found' }, 404);
+	if (!provider) {
+		log('AdminController', '出参', c.get('requestId'), { error: 'APP_NOT_FOUND' });
+		throw notFound('default app not found');
+	}
+	log('AdminController', '出参', c.get('requestId'), { created: true });
 	return c.json({ provider }, 201);
 });
 
 adminGatewayRoutes.put('/config', async (c) => {
+	log('AdminController', '入参', c.get('requestId'), { path: '/config' });
 	const b = await c.req.json<Record<string, unknown>>().catch(() => ({} as Record<string, unknown>));
 	const patch: Record<string, unknown> = { updatedAt: new Date() };
 	if (typeof b.enabledPaymentTypes === 'string') patch.enabledPaymentTypes = b.enabledPaymentTypes;
 	if (Number.isFinite(Number(b.minAmount))) patch.minAmount = Number(b.minAmount).toFixed(2);
 	if (Number.isFinite(Number(b.maxAmount))) patch.maxAmount = Number(b.maxAmount).toFixed(2);
-	if (!await adminService(c.env).updateDefaultConfig(patch)) return c.json({ error: 'default app not found' }, 404);
+	if (!await getService(c.env).updateDefaultConfig(patch)) {
+		log('AdminController', '出参', c.get('requestId'), { error: 'APP_NOT_FOUND' });
+		throw notFound('default app not found');
+	}
+	log('AdminController', '出参', c.get('requestId'), { ok: true });
 	return c.json({ ok: true });
 });
 
 adminGatewayRoutes.post('/payment-tests/easypay', async (c) => {
+	log('AdminController', '入参', c.get('requestId'), { path: '/payment-tests/easypay' });
 	if (!c.env.EASYPAY_BRIDGE_PID || !c.env.EASYPAY_BRIDGE_KEY) {
-		return c.json({ error: 'EasyPay bridge is not configured' }, 503);
+		log('AdminController', '出参', c.get('requestId'), { error: 'BRIDGE_NOT_CONFIGURED' });
+		throw serviceUnavailable('EasyPay bridge is not configured');
 	}
 	const body = await c.req.json<Record<string, unknown>>().catch(() => ({}) as Record<string, unknown>);
 	const amount = Number(body.amount);
@@ -115,7 +175,8 @@ adminGatewayRoutes.post('/payment-tests/easypay', async (c) => {
 	const returnUrl =
 		typeof body.returnUrl === 'string' && body.returnUrl.trim() ? body.returnUrl.trim() : new URL('/admin', c.req.url).toString();
 	if (!Number.isFinite(amount) || amount <= 0 || !['alipay', 'wxpay'].includes(paymentType)) {
-		return c.json({ error: 'amount and a supported paymentType are required' }, 400);
+		log('AdminController', '出参', c.get('requestId'), { error: 'VALIDATION_ERROR' });
+		throw badRequest('amount and a supported paymentType are required');
 	}
 	try {
 		const parsedNotifyUrl = new URL(notifyUrl);
@@ -123,7 +184,8 @@ adminGatewayRoutes.post('/payment-tests/easypay', async (c) => {
 		if (!['http:', 'https:'].includes(parsedNotifyUrl.protocol) || !['http:', 'https:'].includes(parsedReturnUrl.protocol))
 			throw new Error();
 	} catch {
-		return c.json({ error: 'Valid merchant notifyUrl and returnUrl are required' }, 400);
+		log('AdminController', '出参', c.get('requestId'), { error: 'VALIDATION_ERROR' });
+		throw badRequest('Valid merchant notifyUrl and returnUrl are required');
 	}
 	const externalOrderNo = `TEST_${Date.now().toString(36).toUpperCase()}_${crypto.randomUUID().slice(0, 8)}`;
 	const params: Record<string, string> = {
@@ -136,7 +198,7 @@ adminGatewayRoutes.post('/payment-tests/easypay', async (c) => {
 		money: amount.toFixed(2),
 		clientip: c.req.header('cf-connecting-ip') || '127.0.0.1',
 	};
-	params.sign = sign(params, c.env.EASYPAY_BRIDGE_KEY);
+	params.sign = EasyPayService.sign(params, c.env.EASYPAY_BRIDGE_KEY);
 	params.sign_type = 'MD5';
 	const bridgeResponse = await easyPayBridgeRoutes.request(
 		new URL('/mapi.php', c.req.url),
@@ -149,12 +211,15 @@ adminGatewayRoutes.post('/payment-tests/easypay', async (c) => {
 	);
 	const bridgeResult = (await bridgeResponse.json().catch(() => ({}))) as Record<string, unknown>;
 	if (!bridgeResponse.ok || Number(bridgeResult.code) !== 1) {
+		log('AdminController', '出参', c.get('requestId'), { error: 'BRIDGE_FAILED' });
 		return c.json({ error: String(bridgeResult.msg || 'EasyPay compatibility test failed') }, bridgeResponse.status as any);
 	}
-	const db = createDb(c.env.DB);
-	const orderDao = new OrderRepository(db);
-	const order = await orderDao.findByExternalOrderNo(externalOrderNo);
-	if (!order) return c.json({ error: 'Gateway order was not created' }, 500);
+	const order = await getService(c.env).findOrderByExternalNo(externalOrderNo);
+	if (!order) {
+		log('AdminController', '出参', c.get('requestId'), { error: 'ORDER_NOT_CREATED' });
+		return c.json({ error: 'Gateway order was not created' }, 500);
+	}
+	log('AdminController', '出参', c.get('requestId'), { orderId: order.id, created: true });
 	return c.json({
 		order: {
 			...order,
@@ -170,6 +235,7 @@ adminGatewayRoutes.post('/payment-tests/easypay', async (c) => {
 });
 
 adminGatewayRoutes.post('/payment-tests/downstream', async (c) => {
+	log('AdminController', '入参', c.get('requestId'), { path: '/payment-tests/downstream' });
 	const body = await c.req.json<Record<string, unknown>>().catch(() => ({}) as Record<string, unknown>);
 	const requestBody = {
 		...body,
@@ -189,18 +255,29 @@ adminGatewayRoutes.post('/payment-tests/downstream', async (c) => {
 
 adminGatewayRoutes.post('/refunds', async (c) => {
 	const b = await c.req.json<Record<string, unknown>>().catch(() => ({}) as Record<string, unknown>);
-	const result = await adminService(c.env).refund({
+	log('AdminController', '入参', c.get('requestId'), { orderId: typeof b.orderId === 'string' ? { present: true } : { present: false } });
+	const result = await getService(c.env).refund({
 		orderId: String(b.orderId || ''),
 		amount: b.amount !== undefined ? Number(b.amount) : undefined,
 		reason: typeof b.reason === 'string' ? b.reason : undefined,
 		requestUrl: c.req.url,
 	});
-	if (!result.ok) return c.json({ error: result.error }, result.status as any);
-	return c.json({ ok: true, status: result.status, refundAmount: result.refundAmount });
+	if (result.ok) {
+		log('AdminController', '出参', c.get('requestId'), { ok: true, status: result.status });
+		return c.json({ ok: true, status: result.status, refundAmount: result.refundAmount });
+	}
+	log('AdminController', '出参', c.get('requestId'), { error: result.error });
+	return c.json({ error: result.error }, result.status as any);
 });
 
 adminGatewayRoutes.post('/orders/:id/retry-notification', async (c) => {
-	const status = await adminService(c.env).retryNotification(c.req.param('id'));
-	if (!status) return c.json({ error: 'Order is not awaiting settlement' }, 409);
+	const id = c.req.param('id');
+	log('AdminController', '入参', c.get('requestId'), { id: { present: id.length > 0 } });
+	const status = await getService(c.env).retryNotification(id);
+	if (!status) {
+		log('AdminController', '出参', c.get('requestId'), { error: 'ORDER_STATE_CONFLICT' });
+		return c.json({ error: 'Order is not awaiting settlement' }, 409);
+	}
+	log('AdminController', '出参', c.get('requestId'), { status });
 	return status === 'COMPLETED' ? c.json({ ok: true, status }) : c.json({ error: 'Notification retry failed', status }, 502);
 });

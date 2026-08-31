@@ -1,7 +1,7 @@
 export * from './service-error';
 export * from './order-service';
 export * from './order-delivery-service';
-export * from './gateway-service';
-export * from './gateway-constants';
+export { GatewayService, type GatewayProvider, type VerifiedNotification } from './gateway-service';
 export * from './refund-service';
 export * from './admin-service';
+export * from '../dto';

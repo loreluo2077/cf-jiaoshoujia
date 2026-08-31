@@ -1,7 +1,6 @@
 import type { AppSetting } from '../../db/schema';
 import type { SettingsRepository } from '../repositories/settings';
-
-export type ValidatedSettingInput = { key: string; value: string };
+import type { ValidatedSettingInput } from '../dto/settings.dto';
 
 export class SettingsService {
 	constructor(private readonly repository: SettingsRepository) {}

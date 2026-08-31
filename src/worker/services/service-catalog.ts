@@ -1,12 +1,4 @@
-export type ServiceStatus = 'planned' | 'migrating' | 'ready';
-
-export type Service = {
-	id: string;
-	name: string;
-	stack: string;
-	status: ServiceStatus;
-	nextStep: string;
-};
+import type { ServiceStatus, Service } from '../dto/service-catalog.dto';
 
 const services: Service[] = [
 	{

@@ -3,19 +3,7 @@ import { logBusiness } from '../utils/business-logger';
 import { MerchantRepository } from '../repositories/merchant';
 import { OrderRepository } from '../repositories/order';
 import { sign } from '../payment/downstream/easypay';
-
-export type DeliverableOrder = {
-	id: string;
-	amount: string;
-	orderType: string;
-	deliveryStatus?: string;
-	downstreamMerchantId?: string | null;
-	paymentType?: string;
-	paymentTradeNo?: string | null;
-	externalOrderNo?: string | null;
-	externalNotifyUrl?: string | null;
-	subject?: string;
-};
+import type { DeliverableOrder } from '../dto/order.dto';
 
 export class OrderDeliveryService {
 	private readonly orderDao;
@@ -56,9 +44,7 @@ export class OrderDeliveryService {
 
 	async deliverPaidOrder(order: DeliverableOrder): Promise<'COMPLETED' | 'PAID'> {
 		logBusiness({
-			action: 'DELIVER_ORDER',
-			orderId: order.id,
-			phase: '处理中',
+			message: `订单交付开始，orderId：${order.id}`,
 			payload: { orderType: order.orderType, externalNotifyUrl: order.externalNotifyUrl },
 		});
 		try {
@@ -70,7 +56,7 @@ export class OrderDeliveryService {
 				failedReason: null,
 				updatedAt: new Date(),
 			});
-			logBusiness({ action: 'DELIVER_ORDER', orderId: order.id, phase: '成功' });
+			logBusiness({ message: `订单交付成功，orderId：${order.id}` });
 			return 'COMPLETED';
 		} catch (error) {
 			const reason = error instanceof Error ? error.message : 'notification failed';
@@ -80,7 +66,7 @@ export class OrderDeliveryService {
 				failedReason: reason,
 				updatedAt: new Date(),
 			});
-			logBusiness({ action: 'DELIVER_ORDER', orderId: order.id, phase: '失败', error: reason });
+			logBusiness({ message: `订单交付失败，orderId：${order.id}`, error: reason });
 			return 'PAID';
 		}
 	}

@@ -4,17 +4,7 @@ import { AuditLogRepository } from '../repositories/audit-log';
 import { OrderRepository } from '../repositories/order';
 import { ProviderRepository } from '../repositories/provider';
 import { createPaymentProviders } from '../payment/providers';
-
-export interface RefundRequest {
-	orderId: string;
-	/** 退款金额，不传则全额退款 */
-	amount?: number;
-	reason?: string;
-	requestUrl: string;
-}
-
-type RefundSuccess = { ok: true; status: string; refundAmount: string };
-type RefundFailure = { ok: false; error: string; status: number };
+import type { RefundRequest, RefundResult, RefundSuccess, RefundFailure } from '../dto/refund.dto';
 
 /**
  * 退款服务，封装订单退款的完整业务逻辑：
@@ -40,8 +30,8 @@ export class RefundService {
 	 * @returns RefundSuccess 退款成功；RefundFailure 携带 HTTP 状态码和错误信息
 	 * @author Alfie
 	 */
-	async refund(input: RefundRequest): Promise<RefundSuccess | RefundFailure> {
-		logBusiness({ action: 'REFUND', orderId: input.orderId, phase: '入参', payload: { amount: input.amount, reason: input.reason } });
+	async refund(input: RefundRequest): Promise<RefundResult> {
+		logBusiness({ message: `退款开始，orderId：${input.orderId}`, payload: { amount: input.amount, reason: input.reason } });
 		const order = await this.orderDao.findById(input.orderId);
 		if (!order) return { ok: false, error: 'Order not found', status: 404 };
 
@@ -85,7 +75,7 @@ export class RefundService {
 			}
 		} catch (error) {
 			const reason = error instanceof Error ? error.message : 'Payment provider refund failed';
-			logBusiness({ action: 'REFUND', orderId: input.orderId, phase: '失败', error: reason });
+			logBusiness({ message: `退款失败，orderId：${input.orderId}`, error: reason });
 			return { ok: false, error: reason, status: 502 };
 		}
 
@@ -106,7 +96,7 @@ export class RefundService {
 			operator: 'admin',
 			createdAt: now,
 		});
-		logBusiness({ action: 'REFUND', orderId: order.id, phase: '成功', payload: { newStatus, totalRefunded: totalRefunded.toFixed(2) } });
+		logBusiness({ message: `退款成功，orderId：${order.id}`, payload: { newStatus, totalRefunded: totalRefunded.toFixed(2) } });
 		return { ok: true, status: newStatus, refundAmount: totalRefunded.toFixed(2) };
 	}
 }
