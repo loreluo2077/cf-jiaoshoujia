@@ -1,6 +1,6 @@
-import { hasLocalAuthBypass } from '../libs/auth/local';
-import { isValidApiToken, isValidNavigationToken } from '../libs/auth/token';
-import { isValidTotp } from '../libs/auth/totp';
+import { hasLocalAuthBypass } from '../auth/local';
+import { isValidApiToken, isValidNavigationToken } from '../auth/token';
+import { isValidTotp } from '../auth/totp';
 
 export type AuthConfig = { totpSecret?: string; navigationToken?: string; sessionSecret?: string; apiToken?: string };
 

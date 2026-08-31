@@ -1,0 +1,43 @@
+export const ORDER_STATUS = {
+	PENDING: 'PENDING',
+	PAID: 'PAID',
+	FAILED: 'FAILED',
+	RECHARGING: 'RECHARGING',
+	COMPLETED: 'COMPLETED',
+	CANCELLED: 'CANCELLED',
+	EXPIRED: 'EXPIRED',
+	PARTIALLY_REFUNDED: 'PARTIALLY_REFUNDED',
+	REFUNDED: 'REFUNDED',
+} as const;
+
+export const PAYMENT_STATUS = {
+	PENDING: 'PENDING',
+	PAID: 'PAID',
+	FAILED: 'FAILED',
+	CANCELLED: 'CANCELLED',
+	EXPIRED: 'EXPIRED',
+	REFUNDED: 'REFUNDED',
+} as const;
+
+export const PAYMENT_NOTIFICATION_STATUS = {
+	SUCCESS: 'success',
+	FAILED: 'failed',
+} as const;
+
+export const PAYMENT_AUDIT_ACTION = {
+	SUCCEEDED: 'PAYMENT_SUCCEEDED',
+	FAILED: 'PAYMENT_FAILED',
+} as const;
+
+export const UPSTREAM_PROVIDER_KEY = {
+	XUNHUPAY: 'xunhupay',
+	ALIPAY: 'alipay',
+	ALIPAY_DIRECT: 'alipay_direct',
+	WXPAY: 'wxpay',
+	WXPAY_DIRECT: 'wxpay_direct',
+	STRIPE: 'stripe',
+	GENERIC: 'generic',
+	HTTP: 'http',
+} as const;
+
+export const PAYMENT_AMOUNT_TOLERANCE = 0.01;

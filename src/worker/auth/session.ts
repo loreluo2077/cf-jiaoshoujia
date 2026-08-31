@@ -1,7 +1,7 @@
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie';
 import type { Context } from 'hono';
 import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS, SESSION_SUBJECT } from './constants';
-import type { WorkerEnv } from '../../types';
+import type { WorkerEnv } from '../types';
 
 export async function issueSession(c: Context<WorkerEnv>): Promise<void> {
 	await setSignedCookie(c, SESSION_COOKIE, `${SESSION_SUBJECT}.${Date.now() + SESSION_MAX_AGE_SECONDS * 1000}`, c.env.SESSION_SECRET, {
