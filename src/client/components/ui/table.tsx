@@ -1,0 +1,12 @@
+import { forwardRef, type HTMLAttributes, type TableHTMLAttributes, type ThHTMLAttributes, type TdHTMLAttributes } from 'react';
+import { cn } from '@/client/lib/utils';
+export const TableScrollContainer = ({ className, ...props }: HTMLAttributes<HTMLDivElement>) => <div className={cn('table-scroll', className)} {...props} />;
+export const Table = forwardRef<HTMLTableElement, TableHTMLAttributes<HTMLTableElement>>(({ className, ...props }, ref) => <table ref={ref} className={cn('ui-table', className)} {...props} />);
+Table.displayName = 'Table';
+export const TableHeader = ({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) => <thead className={className} {...props} />;
+export const TableBody = ({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) => <tbody className={className} {...props} />;
+export const TableRow = ({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) => <tr className={className} {...props} />;
+export const TableHead = forwardRef<HTMLTableCellElement, ThHTMLAttributes<HTMLTableCellElement>>(({ className, ...props }, ref) => <th ref={ref} className={cn('table-head', className)} {...props} />);
+TableHead.displayName = 'TableHead';
+export const TableCell = forwardRef<HTMLTableCellElement, TdHTMLAttributes<HTMLTableCellElement>>(({ className, ...props }, ref) => <td ref={ref} className={cn('table-cell', className)} {...props} />);
+TableCell.displayName = 'TableCell';
