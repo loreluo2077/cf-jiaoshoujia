@@ -9,7 +9,7 @@ import { healthRoutes } from './routes/health';
 import { serviceRoutes } from './routes/services';
 import { settingsRoutes } from './routes/settings';
 import { authRoutes, navigationAuthRoute } from './routes/auth';
-import { requireAuth, requireSessionAuth } from './auth/middleware';
+import { requireAuth, requireSessionAuth } from './middle/middleware';
 import { gatewayRoutes } from './routes/gateway/index';
 import { adminGatewayRoutes } from './routes/admin/index';
 import { adminExtraRoutes } from './routes/admin/extra';

@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, lt, or } from 'drizzle-orm';
 import { orders } from '../../db/schema';
-import { ORDER_STATUS, PAYMENT_STATUS } from '../payment/core/constants';
+import { ORDER_STATUS, PAYMENT_STATUS } from '../libs/payment/core/constants';
 import type { Database } from './types';
 
 export class OrderRepository {

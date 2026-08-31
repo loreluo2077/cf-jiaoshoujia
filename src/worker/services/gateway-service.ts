@@ -10,10 +10,10 @@ import {
 	PAYMENT_AUDIT_ACTION,
 	PAYMENT_NOTIFICATION_STATUS,
 	PAYMENT_STATUS,
-} from '../payment/core/constants';
-import type { PaymentNotification, PaymentProvider } from '../payment/core/types';
-import { createPaymentProviders } from '../payment/providers';
-import { GenericHttpProvider } from '../payment/upstream/generic';
+} from '../libs/payment/core/constants';
+import type { PaymentNotification, PaymentProvider } from '../libs/payment/core/types';
+import { createPaymentProviders } from '../libs/payment/providers';
+import { GenericHttpProvider } from '../libs/payment/upstream/generic';
 import {
 	GATEWAY_PROVIDER,
 	GATEWAY_RESULT_CODE,

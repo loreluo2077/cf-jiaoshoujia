@@ -1,4 +1,4 @@
-import { sign } from '../payment/downstream/easypay';
+import { sign } from '../libs/payment/downstream/easypay';
 
 export type VerifyTestNotificationResult =
 	| { ok: true }

@@ -2,10 +2,25 @@ import { createDb } from '../../db/client';
 import { OrderRepository } from '../repositories/order';
 import { ProviderRepository } from '../repositories/provider';
 import { MerchantRepository } from '../repositories/merchant';
-import { createPaymentProviders } from '../payment/providers';
-import { sign } from '../payment/downstream/easypay';
+import { createPaymentProviders } from '../libs/payment/providers';
+import { sign } from '../libs/payment/downstream/easypay';
 import { createManagedOrder, ManagedOrderError } from './order-service';
+import { logBusiness } from '../utils/business-logger';
 import type { BridgeConfig, EasyPayParams } from '../dto/easypay.dto';
+
+export type CreatePaymentResult =
+	| { ok: true; order: any; redirect?: string }
+	| { ok: false; code: 'NOT_CONFIGURED' | 'VALIDATION_ERROR' | 'ORDER_EXISTS' | 'ORDER_FAILED' | 'ORDER_CREATING' | 'NO_BROWSER_URL' | 'NO_PAYMENT_INFO'; message?: string };
+
+export type QueryOrRefundResult =
+	| { ok: true; kind: 'order'; order: any }
+	| { ok: true; kind: 'refunded' }
+	| { ok: false; code: 'NOT_CONFIGURED' | 'MERCHANT_VERIFY_FAILED'; message: string }
+	| { ok: false; code: 'MANAGED_ERROR' | 'OPERATION_FAILED'; message: string; status: number };
+
+export type ReturnResult =
+	| { ok: true; redirectUrl: string }
+	| { ok: false; code: 'NOT_CONFIGURED' | 'ORDER_NOT_FOUND'; message: string };
 
 export class EasyPayService {
 	constructor(
@@ -25,6 +40,96 @@ export class EasyPayService {
 		await this.merchantRepository.insertIfAbsent({ id: crypto.randomUUID(), code: 'default-easypay', protocol: 'easypay', pid, secret: key, enabled: true, createdAt: now, updatedAt: now });
 		const created = await this.merchantRepository.findByCode('default-easypay');
 		return { id: created?.id, pid, key };
+	}
+
+	async handleCreatePayment(requestUrl: string, params: Record<string, string>, redirect: boolean): Promise<CreatePaymentResult> {
+		logBusiness({ message: '创建易支付订单开始', payload: { out_trade_no: params.out_trade_no, redirect } });
+
+		const config = await this.bridgeConfig();
+		if (!config) return { ok: false, code: 'NOT_CONFIGURED' };
+
+		const validationError = this.validateCreateRequest(params, config);
+		if (validationError) return { ok: false, code: 'VALIDATION_ERROR', message: validationError };
+
+		const existing = await this.findExisting(params.out_trade_no);
+		if (existing) {
+			if (existing.amount !== EasyPayService.normalizeAmount(params.money) || existing.paymentType !== params.type) {
+				return { ok: false, code: 'ORDER_EXISTS' };
+			}
+			if (existing.status === 'FAILED') {
+				return { ok: false, code: 'ORDER_FAILED', message: existing.failedReason || '订单创建失败' };
+			}
+			if (!existing.payUrl && !existing.qrCode) {
+				return { ok: false, code: 'ORDER_CREATING' };
+			}
+			if (redirect && !existing.payUrl) {
+				return { ok: false, code: 'NO_BROWSER_URL' };
+			}
+
+			logBusiness({ message: `创建易支付订单完成，orderId：${existing.id}`, payload: { fromCache: true } });
+			return { ok: true, order: existing, redirect: redirect ? (existing.payUrl || undefined) : undefined };
+		}
+
+		try {
+			const result = await this.createOrder(requestUrl, params, config);
+			if (!result.order.payUrl && !result.order.qrCode) {
+				return { ok: false, code: 'NO_PAYMENT_INFO' };
+			}
+			if (redirect && !result.order.payUrl) {
+				return { ok: false, code: 'NO_BROWSER_URL' };
+			}
+
+			logBusiness({ message: `创建易支付订单完成，orderId：${result.order.id}` });
+			return { ok: true, order: result.order, redirect: redirect ? (result.order.payUrl || undefined) : undefined };
+		} catch (error) {
+			if (error instanceof ManagedOrderError) {
+				logBusiness({ message: '创建易支付订单失败', error: error.message });
+				return { ok: false, code: 'VALIDATION_ERROR', message: error.message };
+			}
+			const msg = error instanceof Error ? error.message : '创建支付订单失败';
+			logBusiness({ message: '创建易支付订单失败', error: msg });
+			return { ok: false, code: 'VALIDATION_ERROR', message: msg };
+		}
+	}
+
+	async handleQueryOrRefund(params: Record<string, string>): Promise<QueryOrRefundResult> {
+		const config = await this.bridgeConfig();
+		if (!config) return { ok: false, code: 'NOT_CONFIGURED', message: '易支付兼容入口未配置' };
+
+		if (!this.verifyMerchant(params.pid, params.key, config)) {
+			return { ok: false, code: 'MERCHANT_VERIFY_FAILED', message: '商户验证失败' };
+		}
+
+		try {
+			const result = await this.queryOrRefund(params, config);
+			if (result.kind === 'order') {
+				return { ok: true, kind: 'order', order: result.order };
+			}
+			return { ok: true, kind: 'refunded' };
+		} catch (error) {
+			if (error instanceof ManagedOrderError) {
+				return { ok: false, code: 'MANAGED_ERROR', message: error.message, status: error.status };
+			}
+			const msg = error instanceof Error ? error.message : '操作失败';
+			return { ok: false, code: 'OPERATION_FAILED', message: msg, status: 500 };
+		}
+	}
+
+	async handleReturn(orderId: string): Promise<ReturnResult> {
+		const config = await this.bridgeConfig();
+		if (!config) return { ok: false, code: 'NOT_CONFIGURED', message: 'EasyPay bridge is not configured' };
+
+		const order = await this.findOrderById(orderId);
+		if (!order || order.orderType !== 'easypay_bridge' || !order.externalOrderNo || !EasyPayService.validHttpUrl(order.externalReturnUrl || '')) {
+			return { ok: false, code: 'ORDER_NOT_FOUND', message: 'Order not found' };
+		}
+
+		const returnUrl = order.externalReturnUrl || '';
+		const params = this.buildReturnParams(order, config);
+		const target = new URL(returnUrl);
+		for (const [key, value] of Object.entries(params)) target.searchParams.set(key, value);
+
+		return { ok: true, redirectUrl: target.toString() };
 	}
 
 	async findExisting(externalOrderNo: string) {

@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
-import { hasAuthSecret } from '../auth/constants';
-import { hasLocalAuthBypass } from '../auth/local';
-import { clearSession, hasValidSession, issueSession } from '../auth/session';
-import { isValidTotp } from '../auth/totp';
-import { isValidNavigationToken } from '../auth/token';
+import { hasAuthSecret } from '../libs/auth/constants';
+import { hasLocalAuthBypass } from '../libs/auth/local';
+import { clearSession, hasValidSession, issueSession } from '../libs/auth/session';
+import { isValidTotp } from '../libs/auth/totp';
+import { isValidNavigationToken } from '../libs/auth/token';
 import { log } from '../utils/controller-logger';
 import type { WorkerEnv } from '../types';
 

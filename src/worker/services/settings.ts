@@ -1,15 +1,27 @@
-import type { AppSetting } from '../../db/schema';
 import type { SettingsRepository } from '../repositories/settings';
 import type { ValidatedSettingInput } from '../dto/settings.dto';
 
 export class SettingsService {
-	constructor(private readonly repository: SettingsRepository) {}
+	constructor(private readonly settingsRepository: SettingsRepository) {}
 
-	list(key?: string): Promise<AppSetting[]> {
-		return key ? this.repository.findByKey(key).then((setting) => (setting ? [setting] : [])) : this.repository.list();
+	async list(key?: string) {
+		if (key) {
+			const setting = await this.settingsRepository.findByKey(key);
+			return setting ? [setting] : [];
+		}
+		return this.settingsRepository.list();
 	}
 
-	upsert(input: ValidatedSettingInput): Promise<AppSetting> {
-		return this.repository.upsert(input.key, input.value, new Date());
+	async get(key: string) {
+		return this.settingsRepository.findByKey(key);
+	}
+
+	async upsert(input: ValidatedSettingInput) {
+		return this.settingsRepository.upsert(input.key, input.value, new Date());
+	}
+
+	async delete(key: string) {
+		const existing = await this.settingsRepository.findByKey(key);
+		return existing !== null;
 	}
 }

@@ -3,7 +3,7 @@ import { logBusiness } from '../utils/business-logger';
 import { AuditLogRepository } from '../repositories/audit-log';
 import { OrderRepository } from '../repositories/order';
 import { ProviderRepository } from '../repositories/provider';
-import { createPaymentProviders } from '../payment/providers';
+import { createPaymentProviders } from '../libs/payment/providers';
 import type { RefundRequest, RefundResult, RefundSuccess, RefundFailure } from '../dto/refund.dto';
 
 /**

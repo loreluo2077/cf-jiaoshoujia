@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from 'hono';
-import { hasLocalAuthBypass } from '../auth/local';
-import { hasValidSession } from '../auth/session';
-import { isValidApiToken } from '../auth/token';
+import { hasLocalAuthBypass } from '../libs/auth/local';
+import { hasValidSession } from '../libs/auth/session';
+import { isValidApiToken } from '../libs/auth/token';
 import type { WorkerEnv } from '../types';
 import { unauthorized } from '../errors/http';
 

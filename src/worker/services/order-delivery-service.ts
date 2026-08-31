@@ -2,7 +2,7 @@ import { createDb } from '../../db/client';
 import { logBusiness } from '../utils/business-logger';
 import { MerchantRepository } from '../repositories/merchant';
 import { OrderRepository } from '../repositories/order';
-import { sign } from '../payment/downstream/easypay';
+import { sign } from '../libs/payment/downstream/easypay';
 import type { DeliverableOrder } from '../dto/order.dto';
 
 export class OrderDeliveryService {

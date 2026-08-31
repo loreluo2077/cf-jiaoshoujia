@@ -4,7 +4,7 @@ import { AppRepository } from '../repositories/app';
 import { AuditLogRepository } from '../repositories/audit-log';
 import { OrderRepository } from '../repositories/order';
 import { ProviderRepository } from '../repositories/provider';
-import { selectPaymentProvider } from '../payment/providers';
+import { selectPaymentProvider } from '../libs/payment/providers';
 import { ServiceError } from './service-error';
 import type { ManagedOrderRequest } from '../dto/order.dto';
 
