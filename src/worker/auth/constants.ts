@@ -14,7 +14,6 @@ export function hasApiConfig(env: Env): boolean {
 	return Boolean(env.API_TOKEN);
 }
 
-/** @deprecated Use the use-case-specific configuration checks above. */
 export function hasAuthSecret(env: Env): boolean {
 	return hasTotpConfig(env) && hasNavigationConfig(env) && hasApiConfig(env);
 }
