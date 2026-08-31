@@ -1,4 +1,19 @@
-import { ArrowDownToLine, ArrowRight, ArrowUpFromLine, CheckCircle2, CircleDashed, Cloud, Database, Layers3, LoaderCircle, LogOut, RefreshCw, ShieldCheck, Timer, type LucideIcon } from 'lucide-react';
+import {
+	ArrowDownToLine,
+	ArrowRight,
+	ArrowUpFromLine,
+	CheckCircle2,
+	CircleDashed,
+	Cloud,
+	Database,
+	Layers3,
+	LoaderCircle,
+	LogOut,
+	RefreshCw,
+	ShieldCheck,
+	Timer,
+	type LucideIcon,
+} from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Alert, AlertContent, AlertDescription, AlertIndicator, AlertTitle } from '@/client/components/ui/alert';
 import { Badge } from '@/client/components/ui/badge';
@@ -15,7 +30,11 @@ type Service = { id: string; name: string; stack: string; status: 'planned' | 'm
 type Setting = { key: string; value: string; updatedAt: string };
 type AuthState = 'checking' | 'required' | 'authenticated';
 const statusLabel: Record<Service['status'], string> = { planned: '待迁移', migrating: '迁移中', ready: '已完成' };
-const statusAppearance = { planned: { color: 'default', icon: CircleDashed }, migrating: { color: 'warning', icon: Timer }, ready: { color: 'success', icon: CheckCircle2 } } as const;
+const statusAppearance = {
+	planned: { color: 'default', icon: CircleDashed },
+	migrating: { color: 'warning', icon: Timer },
+	ready: { color: 'success', icon: CheckCircle2 },
+} as const;
 
 function App() {
 	const [services, setServices] = useState<Service[]>([]);
@@ -27,17 +46,347 @@ function App() {
 	const [databaseValue, setDatabaseValue] = useState('Hello D1');
 	const [savedSetting, setSavedSetting] = useState<Setting | null>(null);
 	const [databaseStatus, setDatabaseStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-	const loadApplication = async () => { try { const response = await fetch('/api/services'); if (!response.ok) throw new Error('services failed'); const body = await response.json() as { services: Service[] }; setServices(body.services); setApiStatus('ok'); } catch { setApiStatus('error'); } };
-	const authenticate = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setAuthError(''); setAuthLoading(true); try { const response = await fetch('/api/auth/totp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: totpCode }) }); if (!response.ok) throw new Error('invalid code'); setAuthState('authenticated'); setTotpCode(''); await loadApplication(); } catch { setAuthError('验证码无效或认证服务未配置'); } finally { setAuthLoading(false); } };
-	const logout = async () => { const response = await fetch('/api/auth/logout', { method: 'POST' }); const { authenticated } = await response.json() as { authenticated: boolean }; setAuthState(authenticated ? 'authenticated' : 'required'); if (!authenticated) setServices([]); };
-	const readDatabase = async () => { setDatabaseStatus('saving'); try { const response = await fetch('/api/settings?key=database-demo'); if (!response.ok) throw new Error('database read failed'); const body = await response.json() as { settings: Setting[] }; setSavedSetting(body.settings[0] ?? null); if (body.settings[0]) setDatabaseValue(body.settings[0].value); setDatabaseStatus('saved'); } catch { setDatabaseStatus('error'); } };
-	const writeDatabase = async () => { setDatabaseStatus('saving'); try { const response = await fetch('/api/settings/database-demo', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ value: databaseValue }) }); if (!response.ok) throw new Error('database write failed'); const body = await response.json() as { setting: Setting }; setSavedSetting(body.setting); setDatabaseStatus('saved'); } catch { setDatabaseStatus('error'); } };
-	useEffect(() => { fetch('/api/auth/session').then((response) => response.json() as Promise<{ authenticated: boolean }>).then(({ authenticated }) => { setAuthState(authenticated ? 'authenticated' : 'required'); if (authenticated) void loadApplication(); }).catch(() => setAuthState('required')); }, []);
+	const loadApplication = async () => {
+		try {
+			const response = await fetch('/api/services');
+			if (!response.ok) throw new Error('services failed');
+			const body = (await response.json()) as { services: Service[] };
+			setServices(body.services);
+			setApiStatus('ok');
+		} catch {
+			setApiStatus('error');
+		}
+	};
+	const authenticate = async (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		setAuthError('');
+		setAuthLoading(true);
+		try {
+			const response = await fetch('/api/auth/totp', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ code: totpCode }),
+			});
+			if (!response.ok) throw new Error('invalid code');
+			setAuthState('authenticated');
+			setTotpCode('');
+			await loadApplication();
+		} catch {
+			setAuthError('验证码无效或认证服务未配置');
+		} finally {
+			setAuthLoading(false);
+		}
+	};
+	const logout = async () => {
+		const response = await fetch('/api/auth/logout', { method: 'POST' });
+		const { authenticated } = (await response.json()) as { authenticated: boolean };
+		setAuthState(authenticated ? 'authenticated' : 'required');
+		if (!authenticated) setServices([]);
+	};
+	const readDatabase = async () => {
+		setDatabaseStatus('saving');
+		try {
+			const response = await fetch('/api/settings?key=database-demo');
+			if (!response.ok) throw new Error('database read failed');
+			const body = (await response.json()) as { settings: Setting[] };
+			setSavedSetting(body.settings[0] ?? null);
+			if (body.settings[0]) setDatabaseValue(body.settings[0].value);
+			setDatabaseStatus('saved');
+		} catch {
+			setDatabaseStatus('error');
+		}
+	};
+	const writeDatabase = async () => {
+		setDatabaseStatus('saving');
+		try {
+			const response = await fetch('/api/settings/database-demo', {
+				method: 'PUT',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ value: databaseValue }),
+			});
+			if (!response.ok) throw new Error('database write failed');
+			const body = (await response.json()) as { setting: Setting };
+			setSavedSetting(body.setting);
+			setDatabaseStatus('saved');
+		} catch {
+			setDatabaseStatus('error');
+		}
+	};
+	useEffect(() => {
+		fetch('/api/auth/session')
+			.then((response) => response.json() as Promise<{ authenticated: boolean }>)
+			.then(({ authenticated }) => {
+				setAuthState(authenticated ? 'authenticated' : 'required');
+				if (authenticated) void loadApplication();
+			})
+			.catch(() => setAuthState('required'));
+	}, []);
 	const completedServices = services.filter((service) => service.status === 'ready').length;
 	const activeServices = services.filter((service) => service.status === 'migrating').length;
-	const migrationProgress = services.length ? Math.round(services.reduce((total, service) => total + (service.status === 'ready' ? 1 : service.status === 'migrating' ? 0.5 : 0), 0) / services.length * 100) : 0;
-	if (authState === 'checking') return <div className="auth-screen"><Spinner size="lg" /><p>正在检查登录状态</p></div>;
-	if (authState === 'required') return <div className="auth-screen"><form onSubmit={authenticate}><Card className="auth-panel"><div className="brand-mark">J</div><CardHeader><CardTitle>输入动态验证码</CardTitle><CardDescription>使用身份验证器中的 6 位 TOTP 验证码登录。</CardDescription></CardHeader><CardContent className="auth-content"><Label htmlFor="totp-code">6 位验证码</Label><InputOTP id="totp-code" aria-label="6 位验证码" className="totp-input" autoComplete="one-time-code" inputMode="numeric" value={totpCode} onChange={(value) => { setTotpCode(value); setAuthError(''); }} disabled={authLoading} aria-invalid={Boolean(authError)} autoFocus />{authError && <p className="auth-error" role="alert">{authError}</p>}</CardContent><CardFooter><Button type="submit" className="w-full" disabled={authLoading || totpCode.length !== 6}>{authLoading && <Spinner size="sm" />}{authLoading ? '验证中' : '登录'}</Button></CardFooter></Card></form></div>;
-	return <div className="app-shell"><header className="topbar"><div className="topbar-inner"><div className="brand-lockup"><div className="brand-mark">J</div><div><strong>Jiaoshoujia</strong><span>Application Scaffold</span></div></div><Badge color={apiStatus === 'ok' ? 'success' : apiStatus === 'error' ? 'danger' : 'default'} variant="soft"><span className="status-dot" />{apiStatus === 'ok' ? 'Worker 在线' : apiStatus === 'error' ? 'API 不可用' : '连接中'}</Badge><Button aria-label="退出登录" variant="ghost" size="sm" onClick={logout}><LogOut size={16} /><span className="logout-label">退出</span></Button></div></header><main className="workspace"><section className="page-heading"><div><p className="eyebrow">OVERVIEW</p><h1>开发基线</h1><p>Cloudflare Workers、Hono、React、shadcn/ui 与 Drizzle 的统一运行状态。</p></div><Button variant="outline" size="sm" onClick={loadApplication}><RefreshCw size={15} />刷新状态</Button></section><Alert status={apiStatus === 'ok' ? 'success' : apiStatus === 'error' ? 'danger' : 'default'}><AlertIndicator /><AlertContent><AlertTitle>{apiStatus === 'ok' ? '本地开发环境已就绪' : apiStatus === 'error' ? 'Worker API 连接失败' : '正在连接 Worker'}</AlertTitle><AlertDescription>{apiStatus === 'ok' ? '前端、Hono API 与 D1 binding 工作正常。' : apiStatus === 'error' ? '请检查 Vite Worker 日志和本地 bindings。' : '正在读取服务迁移状态。'}</AlertDescription></AlertContent></Alert><section className="metric-grid" aria-label="技术栈状态">{([['运行时','Cloudflare Workers','workerd · Vite HMR',Cloud],['应用框架','Hono + React 19','shadcn/ui · Tailwind v4',Layers3],['数据层','D1 + Drizzle','SQLite migrations',Database],['认证','TOTP + Token','12 小时签名会话',ShieldCheck] ] as [string, string, string, LucideIcon][]).map(([description, title, footer, Icon]) => <Card className="metric-card" key={title as string}><Icon className="metric-icon" size={20} /><CardHeader><CardDescription>{description}</CardDescription><CardTitle>{title}</CardTitle></CardHeader><CardFooter>{footer}</CardFooter></Card>)}</section><div className="dashboard-grid"><section className="table-section"><div className="section-heading"><div><p className="eyebrow">MIGRATION</p><h2>服务迁移清单</h2></div><Badge variant="secondary" size="sm">{services.length} 个服务</Badge></div><TableScrollContainer><Table aria-label="服务迁移清单"><TableHeader><TableRow><TableHead scope="col">服务</TableHead><TableHead scope="col">原技术栈</TableHead><TableHead scope="col">状态</TableHead><TableHead scope="col">下一步</TableHead></TableRow></TableHeader><TableBody>{services.length ? services.map((service) => { const appearance = statusAppearance[service.status]; const StatusIcon = appearance.icon; return <TableRow key={service.id}><TableCell><strong>{service.name}</strong></TableCell><TableCell><span className="stack-text">{service.stack}</span></TableCell><TableCell><Badge color={appearance.color} variant="soft"><StatusIcon size={12} />{statusLabel[service.status]}</Badge></TableCell><TableCell><span className="next-step-text">{service.nextStep}</span></TableCell></TableRow>; }) : <TableRow><TableCell colSpan={4} className="empty-state">暂无服务迁移记录</TableCell></TableRow>}</TableBody></Table></TableScrollContainer></section><Card className="migration-card"><CardHeader><CardDescription>整体进度</CardDescription><CardTitle>{migrationProgress}%</CardTitle></CardHeader><CardContent><Progress aria-label="服务迁移进度" value={migrationProgress} /><div className="migration-counts"><div><strong>{completedServices}</strong><span>已完成</span></div><div><strong>{activeServices}</strong><span>进行中</span></div><div><strong>{services.length - completedServices - activeServices}</strong><span>待迁移</span></div></div></CardContent><CardFooter>迁移状态由 `/api/services` 提供</CardFooter></Card></div><Card className="database-card"><CardHeader><CardDescription>D1 DATABASE LAB</CardDescription><CardTitle>数据库读写验证</CardTitle></CardHeader><CardContent className="database-content"><div><Label htmlFor="database-value">测试值</Label><Input id="database-value" name="database-value" placeholder="输入要写入 D1 的值" value={databaseValue} onChange={(event) => setDatabaseValue(event.target.value)} /></div><div className="database-actions"><Button onClick={writeDatabase} disabled={databaseStatus === 'saving' || !databaseValue.trim()}>{databaseStatus === 'saving' ? <LoaderCircle className="spin" size={16} /> : <ArrowUpFromLine size={16} />}写入</Button><Button variant="outline" onClick={readDatabase} disabled={databaseStatus === 'saving'}><ArrowDownToLine size={16} />读取</Button></div><div className={`database-result ${databaseStatus}`}><div><span>{databaseStatus === 'saving' ? '执行中' : databaseStatus === 'error' ? '读写失败' : savedSetting ? '读取成功' : '等待操作'}</span><strong>{savedSetting ? `${savedSetting.key} = ${savedSetting.value}` : 'app_settings / database-demo'}</strong></div><Database size={18} /></div></CardContent></Card><section className="pipeline-section"><div><p className="eyebrow">REQUEST PIPELINE</p><h2>统一请求链路</h2></div><div className="pipeline-flow">{['React + shadcn/ui', 'Hono API', 'Cloudflare bindings', 'D1 / R2 / KV'].map((item, index) => <div className="pipeline-item" key={item}><Badge variant={index === 0 ? 'primary' : 'secondary'}>{item}</Badge>{index < 3 && <ArrowRight aria-hidden="true" size={15} />}</div>)}</div></section></main></div>;
+	const migrationProgress = services.length
+		? Math.round(
+				(services.reduce((total, service) => total + (service.status === 'ready' ? 1 : service.status === 'migrating' ? 0.5 : 0), 0) /
+					services.length) *
+					100,
+			)
+		: 0;
+	if (authState === 'checking')
+		return (
+			<div className="auth-screen">
+				<Spinner size="lg" />
+				<p>正在检查登录状态</p>
+			</div>
+		);
+	if (authState === 'required')
+		return (
+			<div className="auth-screen">
+				<form onSubmit={authenticate}>
+					<Card className="auth-panel">
+						<div className="brand-mark">J</div>
+						<CardHeader>
+							<CardTitle>输入动态验证码</CardTitle>
+							<CardDescription>使用身份验证器中的 6 位 TOTP 验证码登录。</CardDescription>
+						</CardHeader>
+						<CardContent className="auth-content">
+							<Label htmlFor="totp-code">6 位验证码</Label>
+							<InputOTP
+								id="totp-code"
+								aria-label="6 位验证码"
+								className="totp-input"
+								autoComplete="one-time-code"
+								inputMode="numeric"
+								value={totpCode}
+								onChange={(value) => {
+									setTotpCode(value);
+									setAuthError('');
+								}}
+								disabled={authLoading}
+								aria-invalid={Boolean(authError)}
+								autoFocus
+							/>
+							{authError && (
+								<p className="auth-error" role="alert">
+									{authError}
+								</p>
+							)}
+						</CardContent>
+						<CardFooter>
+							<Button type="submit" className="w-full" disabled={authLoading || totpCode.length !== 6}>
+								{authLoading && <Spinner size="sm" />}
+								{authLoading ? '验证中' : '登录'}
+							</Button>
+						</CardFooter>
+					</Card>
+				</form>
+			</div>
+		);
+	return (
+		<div className="app-shell">
+			<header className="topbar">
+				<div className="topbar-inner">
+					<div className="brand-lockup">
+						<div className="brand-mark">J</div>
+						<div>
+							<strong>Jiaoshoujia</strong>
+							<span>Application Scaffold</span>
+						</div>
+					</div>
+					<Badge color={apiStatus === 'ok' ? 'success' : apiStatus === 'error' ? 'danger' : 'default'} variant="soft">
+						<span className="status-dot" />
+						{apiStatus === 'ok' ? 'Worker 在线' : apiStatus === 'error' ? 'API 不可用' : '连接中'}
+					</Badge>
+					<Button aria-label="退出登录" variant="ghost" size="sm" onClick={logout}>
+						<LogOut size={16} />
+						<span className="logout-label">退出</span>
+					</Button>
+				</div>
+			</header>
+			<main className="workspace">
+				<section className="page-heading">
+					<div>
+						<p className="eyebrow">OVERVIEW</p>
+						<h1>开发基线</h1>
+						<p>Cloudflare Workers、Hono、React、shadcn/ui 与 Drizzle 的统一运行状态。</p>
+					</div>
+					<Button variant="outline" size="sm" onClick={loadApplication}>
+						<RefreshCw size={15} />
+						刷新状态
+					</Button>
+				</section>
+				<Alert status={apiStatus === 'ok' ? 'success' : apiStatus === 'error' ? 'danger' : 'default'}>
+					<AlertIndicator />
+					<AlertContent>
+						<AlertTitle>
+							{apiStatus === 'ok' ? '本地开发环境已就绪' : apiStatus === 'error' ? 'Worker API 连接失败' : '正在连接 Worker'}
+						</AlertTitle>
+						<AlertDescription>
+							{apiStatus === 'ok'
+								? '前端、Hono API 与 D1 binding 工作正常。'
+								: apiStatus === 'error'
+									? '请检查 Vite Worker 日志和本地 bindings。'
+									: '正在读取服务迁移状态。'}
+						</AlertDescription>
+					</AlertContent>
+				</Alert>
+				<section className="metric-grid" aria-label="技术栈状态">
+					{(
+						[
+							['运行时', 'Cloudflare Workers', 'workerd · Vite HMR', Cloud],
+							['应用框架', 'Hono + React 19', 'shadcn/ui · Tailwind v4', Layers3],
+							['数据层', 'D1 + Drizzle', 'SQLite migrations', Database],
+							['认证', 'TOTP + Token', '12 小时签名会话', ShieldCheck],
+						] as [string, string, string, LucideIcon][]
+					).map(([description, title, footer, Icon]) => (
+						<Card className="metric-card" key={title as string}>
+							<Icon className="metric-icon" size={20} />
+							<CardHeader>
+								<CardDescription>{description}</CardDescription>
+								<CardTitle>{title}</CardTitle>
+							</CardHeader>
+							<CardFooter>{footer}</CardFooter>
+						</Card>
+					))}
+				</section>
+				<div className="dashboard-grid">
+					<section className="table-section">
+						<div className="section-heading">
+							<div>
+								<p className="eyebrow">MIGRATION</p>
+								<h2>服务迁移清单</h2>
+							</div>
+							<Badge variant="secondary" size="sm">
+								{services.length} 个服务
+							</Badge>
+						</div>
+						<TableScrollContainer>
+							<Table aria-label="服务迁移清单">
+								<TableHeader>
+									<TableRow>
+										<TableHead scope="col">服务</TableHead>
+										<TableHead scope="col">原技术栈</TableHead>
+										<TableHead scope="col">状态</TableHead>
+										<TableHead scope="col">下一步</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{services.length ? (
+										services.map((service) => {
+											const appearance = statusAppearance[service.status];
+											const StatusIcon = appearance.icon;
+											return (
+												<TableRow key={service.id}>
+													<TableCell>
+														<strong>{service.name}</strong>
+													</TableCell>
+													<TableCell>
+														<span className="stack-text">{service.stack}</span>
+													</TableCell>
+													<TableCell>
+														<Badge color={appearance.color} variant="soft">
+															<StatusIcon size={12} />
+															{statusLabel[service.status]}
+														</Badge>
+													</TableCell>
+													<TableCell>
+														<span className="next-step-text">{service.nextStep}</span>
+													</TableCell>
+												</TableRow>
+											);
+										})
+									) : (
+										<TableRow>
+											<TableCell colSpan={4} className="empty-state">
+												暂无服务迁移记录
+											</TableCell>
+										</TableRow>
+									)}
+								</TableBody>
+							</Table>
+						</TableScrollContainer>
+					</section>
+					<Card className="migration-card">
+						<CardHeader>
+							<CardDescription>整体进度</CardDescription>
+							<CardTitle>{migrationProgress}%</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<Progress aria-label="服务迁移进度" value={migrationProgress} />
+							<div className="migration-counts">
+								<div>
+									<strong>{completedServices}</strong>
+									<span>已完成</span>
+								</div>
+								<div>
+									<strong>{activeServices}</strong>
+									<span>进行中</span>
+								</div>
+								<div>
+									<strong>{services.length - completedServices - activeServices}</strong>
+									<span>待迁移</span>
+								</div>
+							</div>
+						</CardContent>
+						<CardFooter>迁移状态由 `/api/services` 提供</CardFooter>
+					</Card>
+				</div>
+				<Card className="database-card">
+					<CardHeader>
+						<CardDescription>D1 DATABASE LAB</CardDescription>
+						<CardTitle>数据库读写验证</CardTitle>
+					</CardHeader>
+					<CardContent className="database-content">
+						<div>
+							<Label htmlFor="database-value">测试值</Label>
+							<Input
+								id="database-value"
+								name="database-value"
+								placeholder="输入要写入 D1 的值"
+								value={databaseValue}
+								onChange={(event) => setDatabaseValue(event.target.value)}
+							/>
+						</div>
+						<div className="database-actions">
+							<Button onClick={writeDatabase} disabled={databaseStatus === 'saving' || !databaseValue.trim()}>
+								{databaseStatus === 'saving' ? <LoaderCircle className="spin" size={16} /> : <ArrowUpFromLine size={16} />}写入
+							</Button>
+							<Button variant="outline" onClick={readDatabase} disabled={databaseStatus === 'saving'}>
+								<ArrowDownToLine size={16} />
+								读取
+							</Button>
+						</div>
+						<div className={`database-result ${databaseStatus}`}>
+							<div>
+								<span>
+									{databaseStatus === 'saving'
+										? '执行中'
+										: databaseStatus === 'error'
+											? '读写失败'
+											: savedSetting
+												? '读取成功'
+												: '等待操作'}
+								</span>
+								<strong>{savedSetting ? `${savedSetting.key} = ${savedSetting.value}` : 'app_settings / database-demo'}</strong>
+							</div>
+							<Database size={18} />
+						</div>
+					</CardContent>
+				</Card>
+				<section className="pipeline-section">
+					<div>
+						<p className="eyebrow">REQUEST PIPELINE</p>
+						<h2>统一请求链路</h2>
+					</div>
+					<div className="pipeline-flow">
+						{['React + shadcn/ui', 'Hono API', 'Cloudflare bindings', 'D1 / R2 / KV'].map((item, index) => (
+							<div className="pipeline-item" key={item}>
+								<Badge variant={index === 0 ? 'primary' : 'secondary'}>{item}</Badge>
+								{index < 3 && <ArrowRight aria-hidden="true" size={15} />}
+							</div>
+						))}
+					</div>
+				</section>
+			</main>
+		</div>
+	);
 }
 export default App;

@@ -37,7 +37,10 @@ app.onError((error, c) => {
 	if (error instanceof HTTPException) return error.getResponse();
 	if (error instanceof BusinessException) {
 		console.error(`[${requestId}][BusinessException]:${error.code}`);
-		return c.json({ error: error.code, message: error.message, ...(error.details === undefined ? {} : { details: error.details }) }, error.status as 500);
+		return c.json(
+			{ error: error.code, message: error.message, ...(error.details === undefined ? {} : { details: error.details }) },
+			error.status as 500,
+		);
 	}
 	console.error(`[${requestId}][UnhandledException]:${error instanceof Error ? error.name : 'UnknownError'}`);
 	return c.json({ error: 'INTERNAL_SERVER_ERROR', message: '服务暂时不可用' }, 500);

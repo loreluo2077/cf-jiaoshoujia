@@ -17,11 +17,11 @@ export default defineConfig({
 							test: /node_modules[\\/](react|react-dom)[\\/]/,
 							priority: 30,
 						},
-							{
-								name: 'ui-vendor',
-								test: /node_modules[\\/](class-variance-authority|clsx|tailwind-merge)[\\/]/,
-								priority: 20,
-							},
+						{
+							name: 'ui-vendor',
+							test: /node_modules[\\/](class-variance-authority|clsx|tailwind-merge)[\\/]/,
+							priority: 20,
+						},
 
 						{
 							name: 'icons-vendor',

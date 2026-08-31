@@ -53,9 +53,21 @@ describe('application API', () => {
 	});
 
 	it('rejects invalid settings input at the API boundary', async () => {
-		const invalidJson = await SELF.fetch('https://example.com/api/settings/invalid key', { method: 'PUT', headers: { ...apiHeaders, 'content-type': 'application/json' }, body: '{' });
-		const invalidValue = await SELF.fetch('https://example.com/api/settings/invalid-key', { method: 'PUT', headers: { ...apiHeaders, 'content-type': 'application/json' }, body: JSON.stringify({ value: '   ' }) });
-		const invalidKey = await SELF.fetch('https://example.com/api/settings/invalid%20key', { method: 'PUT', headers: { ...apiHeaders, 'content-type': 'application/json' }, body: JSON.stringify({ value: 'ok' }) });
+		const invalidJson = await SELF.fetch('https://example.com/api/settings/invalid key', {
+			method: 'PUT',
+			headers: { ...apiHeaders, 'content-type': 'application/json' },
+			body: '{',
+		});
+		const invalidValue = await SELF.fetch('https://example.com/api/settings/invalid-key', {
+			method: 'PUT',
+			headers: { ...apiHeaders, 'content-type': 'application/json' },
+			body: JSON.stringify({ value: '   ' }),
+		});
+		const invalidKey = await SELF.fetch('https://example.com/api/settings/invalid%20key', {
+			method: 'PUT',
+			headers: { ...apiHeaders, 'content-type': 'application/json' },
+			body: JSON.stringify({ value: 'ok' }),
+		});
 
 		expect(invalidJson.status).toBe(400);
 		expect(invalidValue.status).toBe(400);

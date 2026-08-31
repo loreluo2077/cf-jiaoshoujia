@@ -127,6 +127,7 @@
 - 增加依赖或抽象前，先复用项目已有模式。
 - 前端、Worker 和数据库代码必须保持在各自目录边界内。
 - 修改 API、认证或数据行为时，应增加或更新针对性测试。
+- 提交前运行 `npm run format:check`；需要自动格式化时运行 `npm run format`。
 - 环境允许时，完成改动前运行 `npm run build`、`npm test` 和 `npm run check`。
 - 修改 UI 后，还需要在桌面端和移动端尺寸下检查相关流程。
 

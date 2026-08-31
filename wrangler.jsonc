@@ -4,18 +4,16 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "cf-jiaoshoujia",
+	"name": "mine-pay",
 	"main": "src/worker/index.ts",
 	"compatibility_date": "2026-08-20",
-	"compatibility_flags": [
-		"global_fetch_strictly_public"
-	],
+	"compatibility_flags": ["global_fetch_strictly_public"],
 	"assets": {
 		"directory": "./dist/client",
-		"not_found_handling": "single-page-application"
+		"not_found_handling": "single-page-application",
 	},
 	"observability": {
-		"enabled": true
+		"enabled": true,
 	},
 	"upload_source_maps": true,
 	/**
@@ -36,13 +34,15 @@
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
 	 */
 	// "vars": { "MY_VARIABLE": "production_value" }
-	"d1_databases": [{
-		"binding": "DB",
-		"database_name": "jiaoshoujia",
-		"database_id": "fdf10fb6-548b-4135-9e93-9dd20a1fd670",
-		"preview_database_id": "jiaoshoujia-local",
-		"migrations_dir": "./migrations"
-	}],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "mine-pay",
+			"database_id": "fdf10fb6-548b-4135-9e93-9dd20a1fd670",
+			"preview_database_id": "mine-pay-local",
+			"migrations_dir": "./migrations",
+		},
+	],
 	/**
 	 * Service Bindings (communicate between multiple Workers)
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings

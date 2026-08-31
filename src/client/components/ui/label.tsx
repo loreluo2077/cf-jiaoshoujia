@@ -1,4 +1,6 @@
 import { forwardRef, type LabelHTMLAttributes } from 'react';
 import { cn } from '@/client/lib/utils';
-export const Label = forwardRef<HTMLLabelElement, LabelHTMLAttributes<HTMLLabelElement>>(({ className, ...props }, ref) => <label ref={ref} className={cn('ui-label', className)} {...props} />);
+export const Label = forwardRef<HTMLLabelElement, LabelHTMLAttributes<HTMLLabelElement>>(({ className, ...props }, ref) => (
+	<label ref={ref} className={cn('ui-label', className)} {...props} />
+));
 Label.displayName = 'Label';

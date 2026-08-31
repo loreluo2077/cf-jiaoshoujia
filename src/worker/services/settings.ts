@@ -7,7 +7,7 @@ export class SettingsService {
 	constructor(private readonly repository: SettingsRepository) {}
 
 	list(key?: string): Promise<AppSetting[]> {
-		return key ? this.repository.findByKey(key).then((setting) => setting ? [setting] : []) : this.repository.list();
+		return key ? this.repository.findByKey(key).then((setting) => (setting ? [setting] : [])) : this.repository.list();
 	}
 
 	upsert(input: ValidatedSettingInput): Promise<AppSetting> {

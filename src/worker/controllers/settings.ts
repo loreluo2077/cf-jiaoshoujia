@@ -21,7 +21,9 @@ settingsRoutes.put('/:key', async (c) => {
 	const key = c.req.param('key');
 	log('SettingsController', '入参', c.get('requestId'), { key: { present: key.length > 0, length: key.length } });
 	let body: { value?: unknown };
-	try { body = await c.req.json<{ value?: unknown }>(); } catch {
+	try {
+		body = await c.req.json<{ value?: unknown }>();
+	} catch {
 		log('SettingsController', '出参', c.get('requestId'), { error: 'INVALID_JSON' });
 		throw badRequest('Invalid JSON body');
 	}
