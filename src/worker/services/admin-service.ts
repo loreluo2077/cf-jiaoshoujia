@@ -1,7 +1,6 @@
 import { createDb } from '../../db/client';
 import { OrderRepository } from '../repositories/order';
 import { ProviderRepository } from '../repositories/provider';
-import { MerchantRepository } from '../repositories/merchant';
 import { deliverPaidOrder } from './order-delivery-service';
 import { RefundService } from './refund-service';
 import type { RefundRequest } from '../dto/refund.dto';
@@ -73,7 +72,7 @@ export class AdminService {
 	}) {
 		const now = new Date();
 		const provider = {
-			id: crypto.randomUUID(), ...input, limits: null, createdAt: now, updatedAt: now,
+			id: crypto.randomUUID(), ...input, createdAt: now, updatedAt: now,
 		};
 		await this.providers.insert(provider);
 		return provider;

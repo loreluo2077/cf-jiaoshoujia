@@ -1,11 +1,5 @@
 import { integer, sqliteTable, text, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
 
-export const appSettings = sqliteTable('app_settings', {
-	key: text('key').primaryKey(),
-	value: text('value').notNull(),
-	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-});
-
 export const orders = sqliteTable(
 	'orders',
 	{
@@ -74,7 +68,6 @@ export const paymentProviderInstances = sqliteTable(
 		supportedTypes: text('supported_types').notNull().default(''),
 		enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
 		sortOrder: integer('sort_order').notNull().default(0),
-		limits: text('limits'),
 		refundEnabled: integer('refund_enabled', { mode: 'boolean' }).notNull().default(false),
 		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 		updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
@@ -104,8 +97,6 @@ export const apps = sqliteTable(
 	(t) => [uniqueIndex('apps_code_idx').on(t.code)],
 );
 
-export type AppSetting = typeof appSettings.$inferSelect;
-export type NewAppSetting = typeof appSettings.$inferInsert;
 export type App = typeof apps.$inferSelect;
 export type NewApp = typeof apps.$inferInsert;
 export type Order = typeof orders.$inferSelect;
