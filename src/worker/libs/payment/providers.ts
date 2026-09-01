@@ -1,4 +1,4 @@
-import type { PaymentProviderInstance } from '../../db/schema';
+import type { PaymentProviderInstance } from '../../../db/schema';
 import { AlipayProvider } from './upstream/alipay';
 import { EasyPayProvider } from './downstream/easypay';
 import { GenericHttpProvider } from './upstream/generic';

@@ -50,6 +50,9 @@ export interface Provider {
 	enabled: boolean;
 	createdAt: string;
 	updatedAt: string;
+	supportedTypes?: string;
+	refundEnabled?: boolean;
+	sortOrder?: number;
 }
 
 export interface Merchant {

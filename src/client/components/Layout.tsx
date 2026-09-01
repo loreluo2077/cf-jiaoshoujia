@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { LogOut, ShoppingCart, RefreshCcw, CreditCard, Settings, Menu, X } from 'lucide-react';
+import { LogOut, ShoppingCart, CreditCard, Menu, X } from 'lucide-react';
 import { Button } from '@/client/components/ui/button';
 
 interface LayoutProps {
@@ -11,9 +11,7 @@ interface LayoutProps {
 
 const navigation = [
 	{ id: 'orders', name: '订单管理', icon: ShoppingCart },
-	{ id: 'refunds', name: '退款管理', icon: RefreshCcw },
 	{ id: 'providers', name: '支付渠道', icon: CreditCard },
-	{ id: 'settings', name: '系统设置', icon: Settings },
 ];
 
 export function Layout({ children, currentPage, onNavigate, onLogout }: LayoutProps) {

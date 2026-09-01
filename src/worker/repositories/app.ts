@@ -1,5 +1,5 @@
-import { desc, eq } from 'drizzle-orm';
-import { appConfigs, apps } from '../../db/schema';
+import { eq } from 'drizzle-orm';
+import { apps } from '../../db/schema';
 import type { Database } from './types';
 
 export class AppRepository {
@@ -24,31 +24,22 @@ export class AppRepository {
 	}
 
 	findAll() {
-		return this.db.select().from(apps).orderBy(desc(apps.updatedAt));
+		return this.db.select().from(apps);
 	}
 
 	insert(app: typeof apps.$inferInsert) {
 		return this.db.insert(apps).values(app);
 	}
 
+	insertIfAbsent(app: typeof apps.$inferInsert) {
+		return this.db.insert(apps).values(app).onConflictDoNothing();
+	}
+
 	update(id: string, patch: Partial<typeof apps.$inferInsert>) {
 		return this.db.update(apps).set(patch).where(eq(apps.id, id));
 	}
 
-	findConfig(appId: string) {
-		return this.db
-			.select()
-			.from(appConfigs)
-			.where(eq(appConfigs.appId, appId))
-			.limit(1)
-			.then((rows) => rows[0]);
-	}
-
-	insertConfig(config: typeof appConfigs.$inferInsert) {
-		return this.db.insert(appConfigs).values(config);
-	}
-
-	updateConfig(appId: string, patch: Partial<typeof appConfigs.$inferInsert>) {
-		return this.db.update(appConfigs).set(patch).where(eq(appConfigs.appId, appId));
+	delete(id: string) {
+		return this.db.delete(apps).where(eq(apps.id, id));
 	}
 }

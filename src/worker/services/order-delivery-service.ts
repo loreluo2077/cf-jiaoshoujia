@@ -1,25 +1,25 @@
 import { createDb } from '../../db/client';
 import { logBusiness } from '../utils/business-logger';
-import { MerchantRepository } from '../repositories/merchant';
+import { AppRepository } from '../repositories/app';
 import { OrderRepository } from '../repositories/order';
 import { sign } from '../libs/payment/downstream/easypay';
 import type { DeliverableOrder } from '../dto/order.dto';
 
 export class OrderDeliveryService {
 	private readonly orderDao;
-	private readonly merchantDao;
+	private readonly appDao;
 
 	constructor(private readonly env: Env) {
 		const db = createDb(env.DB);
 		this.orderDao = new OrderRepository(db);
-		this.merchantDao = new MerchantRepository(db);
+		this.appDao = new AppRepository(db);
 	}
 
 	private async notifyEasyPayMerchant(order: DeliverableOrder) {
-		const merchant = order.downstreamMerchantId ? await this.merchantDao.findById(order.downstreamMerchantId) : undefined;
-		const pid = merchant?.pid || this.env.EASYPAY_BRIDGE_PID;
-		const key = merchant?.secret || this.env.EASYPAY_BRIDGE_KEY;
-		if (!pid || !key) throw new Error('EasyPay merchant is not configured');
+		const app = order.appId ? await this.appDao.findById(order.appId) : undefined;
+		const pid = app?.pid || this.env.EASYPAY_BRIDGE_PID;
+		const key = app?.secret || this.env.EASYPAY_BRIDGE_KEY;
+		if (!pid || !key) throw new Error('EasyPay app is not configured');
 		if (!order.externalOrderNo || !order.externalNotifyUrl || !order.paymentTradeNo) throw new Error('EasyPay order mapping is incomplete');
 		const callback: Record<string, string> = {
 			pid,
@@ -39,7 +39,7 @@ export class OrderDeliveryService {
 		});
 		const acknowledgment = (await response.text()).trim().toLowerCase();
 		if (!response.ok || acknowledgment !== 'success')
-			throw new Error(`EasyPay merchant notification was not acknowledged (${response.status})`);
+			throw new Error(`EasyPay app notification was not acknowledged (${response.status})`);
 	}
 
 	async deliverPaidOrder(order: DeliverableOrder): Promise<'COMPLETED' | 'PAID'> {

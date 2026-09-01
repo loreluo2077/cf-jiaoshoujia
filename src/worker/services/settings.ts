@@ -22,6 +22,8 @@ export class SettingsService {
 
 	async delete(key: string) {
 		const existing = await this.settingsRepository.findByKey(key);
-		return existing !== null;
+		if (!existing) return false;
+		await this.settingsRepository.delete(key);
+		return true;
 	}
 }

@@ -5,8 +5,6 @@ export interface ManagedOrderRequest {
 	paymentType: string;
 	userId: string;
 	userEmail?: string;
-	appCode?: string;
-	appId?: string;
 	orderType?: string;
 	subject?: string;
 	externalOrderNo?: string;
@@ -16,7 +14,7 @@ export interface ManagedOrderRequest {
 	srcHost?: string;
 	srcUrl?: string;
 	returnUrlForOrder?: (orderId: string) => string;
-	downstreamMerchantId?: string;
+	appId?: string;
 	orderNo?: string;
 }
 
@@ -25,7 +23,7 @@ export type DeliverableOrder = {
 	amount: string;
 	orderType: string;
 	deliveryStatus?: string;
-	downstreamMerchantId?: string | null;
+	appId?: string | null;
 	paymentType?: string;
 	paymentTradeNo?: string | null;
 	externalOrderNo?: string | null;

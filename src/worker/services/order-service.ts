@@ -1,6 +1,5 @@
 import { createDb } from '../../db/client';
 import { logBusiness } from '../utils/business-logger';
-import { AppRepository } from '../repositories/app';
 import { AuditLogRepository } from '../repositories/audit-log';
 import { OrderRepository } from '../repositories/order';
 import { ProviderRepository } from '../repositories/provider';
@@ -11,29 +10,15 @@ import type { ManagedOrderRequest } from '../dto/order.dto';
 export class ManagedOrderError extends ServiceError {}
 
 export class OrderService {
-	private readonly appDao;
 	private readonly orderDao;
 	private readonly providerDao;
 	private readonly auditLogDao;
 
 	constructor(private readonly env: Env) {
 		const db = createDb(env.DB);
-		this.appDao = new AppRepository(db);
 		this.orderDao = new OrderRepository(db);
 		this.providerDao = new ProviderRepository(db);
 		this.auditLogDao = new AuditLogRepository(db);
-	}
-
-	private async getOrCreateApp(code?: string, appId?: string) {
-		if (appId) return this.appDao.findById(appId);
-		const appCode = code || 'default';
-		const existing = await this.appDao.findByCode(appCode);
-		if (existing) return existing;
-		const now = new Date();
-		const created = { id: crypto.randomUUID(), code: appCode, name: '个人支付网关', status: 'active', createdAt: now, updatedAt: now };
-		await this.appDao.insert(created);
-		await this.appDao.insertConfig({ appId: created.id, updatedAt: now });
-		return created;
 	}
 
 	async createManagedOrder(requestUrl: string, input: ManagedOrderRequest) {
@@ -41,25 +26,13 @@ export class OrderService {
 			message: '创建订单开始',
 			payload: { paymentType: input.paymentType, amount: input.amount, orderType: input.orderType, externalOrderNo: input.externalOrderNo },
 		});
-		const app = await this.getOrCreateApp(input.appCode, input.appId);
-		if (!app) throw new ManagedOrderError('App not found', 404);
-		const config = await this.appDao.findConfig(app.id);
-		const enabledTypes = (config?.enabledPaymentTypes || '')
-			.split(',')
-			.map((value) => value.trim())
-			.filter(Boolean);
-		if (enabledTypes.length && !enabledTypes.includes(input.paymentType)) throw new ManagedOrderError('Payment type is disabled', 422);
-		if (config && (input.amount < Number(config.minAmount) || input.amount > Number(config.maxAmount))) {
-			throw new ManagedOrderError(`amount must be between ${config.minAmount} and ${config.maxAmount}`, 422);
-		}
 
 		const orderId = input.orderNo ?? crypto.randomUUID();
 		const createdAt = new Date();
-		const expiresAt = new Date(createdAt.getTime() + (config?.orderTimeoutMinutes || 5) * 60_000);
+		const expiresAt = new Date(createdAt.getTime() + 5 * 60_000);
 		const rechargeCode = `RP${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 		const row = {
 			id: orderId,
-			appId: app.id,
 			userId: input.userId,
 			userEmail: input.userEmail || null,
 			amount: input.amount.toFixed(2),
@@ -79,7 +52,7 @@ export class OrderService {
 			externalReturnUrl: input.externalReturnUrl || null,
 			subject: input.subject || '个人支付网关充值',
 			orderType: input.orderType || 'balance',
-			downstreamMerchantId: input.downstreamMerchantId || null,
+			appId: input.appId || null,
 			planId: null,
 			expiresAt,
 			paidAt: null,
@@ -109,7 +82,7 @@ export class OrderService {
 			createdAt,
 		});
 
-		const selected = selectPaymentProvider(await this.providerDao.findEnabledByAppId(app.id), input.paymentType, input.amount, requestUrl);
+		const selected = selectPaymentProvider(await this.providerDao.findEnabled(), input.paymentType, input.amount, requestUrl);
 		if (selected) {
 			try {
 				const payment = await selected.provider.createPayment({

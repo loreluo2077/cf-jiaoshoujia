@@ -3,9 +3,7 @@ import { useAuth } from '@/client/hooks/useApi';
 import { LoginPage } from '@/client/pages/LoginPage';
 import { Layout } from '@/client/components/Layout';
 import { OrdersPage } from '@/client/pages/OrdersPage';
-import { RefundsPage } from '@/client/pages/RefundsPage';
 import { ProvidersPage } from '@/client/pages/ProvidersPage';
-import { SettingsPage } from '@/client/pages/SettingsPage';
 import { Spinner } from '@/client/components/ui/spinner';
 
 function App() {
@@ -28,12 +26,8 @@ function App() {
 		switch (currentPage) {
 			case 'orders':
 				return <OrdersPage />;
-			case 'refunds':
-				return <RefundsPage />;
 			case 'providers':
 				return <ProvidersPage />;
-			case 'settings':
-				return <SettingsPage />;
 			default:
 				return <OrdersPage />;
 		}

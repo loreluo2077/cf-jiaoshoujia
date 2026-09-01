@@ -18,26 +18,18 @@ export class ProviderRepository {
 		return this.db.select().from(paymentProviderInstances).orderBy(paymentProviderInstances.sortOrder);
 	}
 
-	findByAppId(appId: string) {
-		return this.db.select().from(paymentProviderInstances).where(eq(paymentProviderInstances.appId, appId));
-	}
-
-	findEnabledByAppId(appId: string) {
+	findEnabled() {
 		return this.db
 			.select()
 			.from(paymentProviderInstances)
-			.where(and(eq(paymentProviderInstances.appId, appId), eq(paymentProviderInstances.enabled, true)));
+			.where(eq(paymentProviderInstances.enabled, true));
 	}
 
-	findForOrder(appId: string, providerInstanceId?: string | null) {
+	findForOrder(providerInstanceId?: string | null) {
 		return this.db
 			.select()
 			.from(paymentProviderInstances)
-			.where(
-				providerInstanceId
-					? and(eq(paymentProviderInstances.appId, appId), eq(paymentProviderInstances.id, providerInstanceId))
-					: eq(paymentProviderInstances.appId, appId),
-			);
+			.where(providerInstanceId ? eq(paymentProviderInstances.id, providerInstanceId) : undefined);
 	}
 
 	findByKey(providerKey: string) {

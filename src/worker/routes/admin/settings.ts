@@ -37,3 +37,12 @@ settingsRoutes.put('/:key', async (c) => {
 	log('SettingsController', '出参', c.get('requestId'), { saved: true });
 	return c.json({ setting });
 });
+
+settingsRoutes.delete('/:key', async (c) => {
+	const key = c.req.param('key');
+	log('SettingsController', '入参', c.get('requestId'), { key: { present: key.length > 0 } });
+	const deleted = await getService(c.env).delete(key);
+	if (!deleted) throw badRequest('setting not found');
+	log('SettingsController', '出参', c.get('requestId'), { deleted: true });
+	return c.json({ ok: true });
+});

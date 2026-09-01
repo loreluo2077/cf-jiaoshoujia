@@ -10,10 +10,10 @@ import { serviceRoutes } from './routes/admin/services';
 import { settingsRoutes } from './routes/admin/settings';
 import { authRoutes, navigationAuthRoute } from './routes/admin/auth';
 import { requireAuth, requireSessionAuth } from './middle/middleware';
-import { gatewayRoutes } from './routes/gateway/index';
+import { gatewayRoutes } from './routes/callback/index';
 import { adminGatewayRoutes } from './routes/admin/index';
 import { adminExtraRoutes } from './routes/admin/extra';
-import { easyPayBridgeRoutes } from './routes/downstream/easypay';
+import { easyPayBridgeRoutes } from './routes/app/sub2api';
 import { createDb } from '../db/client';
 import { OrderRepository } from './repositories/order';
 import { deliverPaidOrder } from './services/order-delivery-service';
@@ -51,7 +51,7 @@ app.onError((error, c) => {
 			error.status as 500,
 		);
 	}
-	console.error(`[${requestId}][UnhandledException]:${error instanceof Error ? error.name : 'UnknownError'}`);
+	console.error(`[${requestId}][UnhandledException]:`, error);
 	return c.json({ error: 'INTERNAL_SERVER_ERROR', message: '服务暂时不可用' }, 500);
 });
 

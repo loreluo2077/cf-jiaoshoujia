@@ -33,12 +33,29 @@ export class OrderRepository {
 			.then((rows) => rows[0]);
 	}
 
-	findByAppId(appId: string) {
-		return this.db.select().from(orders).where(eq(orders.appId, appId));
-	}
-
 	findAll() {
 		return this.db.select().from(orders).orderBy(desc(orders.createdAt));
+	}
+
+	async findRefunds(filter: { status?: string; page: number; pageSize: number }) {
+		const all = (await this.findAll()).filter((row) => row.refundAmount !== null);
+		const filtered = filter.status ? all.filter((row) => row.status === filter.status) : all;
+		const rows = filtered.slice((filter.page - 1) * filter.pageSize, filter.page * filter.pageSize);
+		return {
+			rows: rows.map((row) => ({
+				id: `refund_${row.id}`,
+				orderId: row.id,
+				amount: row.refundAmount || '0',
+				status: row.status === 'REFUNDED' ? 'COMPLETED' : 'FAILED',
+				reason: row.refundReason,
+				upstreamRefundNo: null,
+				failedReason: row.failedReason,
+				createdAt: row.refundAt || row.createdAt,
+				updatedAt: row.updatedAt,
+				completedAt: row.refundAt,
+			})),
+			total: filtered.length,
+		};
 	}
 
 	/**

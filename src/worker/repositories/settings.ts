@@ -9,6 +9,7 @@ export interface SettingsRepository {
 	list(): Promise<AppSetting[]>;
 	findByKey(key: string): Promise<AppSetting | null>;
 	upsert(key: string, value: string, updatedAt: Date): Promise<AppSetting>;
+	delete(key: string): Promise<void>;
 }
 
 export function createSettingsRepository(db: Database): SettingsRepository {
@@ -28,6 +29,9 @@ export function createSettingsRepository(db: Database): SettingsRepository {
 			const setting = await this.findByKey(key);
 			if (!setting) throw new BusinessException('SETTING_PERSIST_FAILED', '设置保存失败', 500);
 			return setting;
+		},
+		async delete(key) {
+			await db.delete(appSettings).where(eq(appSettings.key, key));
 		},
 	};
 }

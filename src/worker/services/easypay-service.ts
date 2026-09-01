@@ -1,7 +1,7 @@
 import { createDb } from '../../db/client';
 import { OrderRepository } from '../repositories/order';
 import { ProviderRepository } from '../repositories/provider';
-import { MerchantRepository } from '../repositories/merchant';
+import { AppRepository } from '../repositories/app';
 import { createPaymentProviders } from '../libs/payment/providers';
 import { sign } from '../libs/payment/downstream/easypay';
 import { createManagedOrder, ManagedOrderError } from './order-service';
@@ -27,18 +27,18 @@ export class EasyPayService {
 		private readonly env: Env,
 		private readonly orderRepository: OrderRepository,
 		private readonly providerRepository: ProviderRepository,
-		private readonly merchantRepository: MerchantRepository,
+		private readonly appRepository: AppRepository,
 	) {}
 
 	async bridgeConfig(): Promise<BridgeConfig | undefined> {
-		const stored = await this.merchantRepository.findByCode('default-easypay');
+		const stored = await this.appRepository.findByCode('default-easypay');
 		if (stored?.enabled) return { id: stored.id, pid: stored.pid, key: stored.secret };
 		const pid = this.env.EASYPAY_BRIDGE_PID?.trim();
 		const key = this.env.EASYPAY_BRIDGE_KEY?.trim();
 		if (!pid || !key) return undefined;
 		const now = new Date();
-		await this.merchantRepository.insertIfAbsent({ id: crypto.randomUUID(), code: 'default-easypay', protocol: 'easypay', pid, secret: key, enabled: true, createdAt: now, updatedAt: now });
-		const created = await this.merchantRepository.findByCode('default-easypay');
+		await this.appRepository.insertIfAbsent({ id: crypto.randomUUID(), code: 'default-easypay', name: '默认易支付应用', protocol: 'easypay', pid, secret: key, enabled: true, createdAt: now, updatedAt: now });
+		const created = await this.appRepository.findByCode('default-easypay');
 		return { id: created?.id, pid, key };
 	}
 
@@ -144,7 +144,7 @@ export class EasyPayService {
 		return createManagedOrder(this.env, requestUrl, {
 			amount: Number(params.money), paymentType: params.type, userId: `merchant:${params.out_trade_no}`,
 			orderType: 'easypay_bridge', subject: params.name, externalOrderNo: params.out_trade_no,
-			externalNotifyUrl: params.notify_url, externalReturnUrl: params.return_url, downstreamMerchantId: config.id,
+			externalNotifyUrl: params.notify_url, externalReturnUrl: params.return_url, appId: config.id,
 			clientIp: params.clientip, returnUrlForOrder: (orderId) => new URL(`/api/easypay/return/${orderId}`, requestUrl).toString(),
 			orderNo:params.out_trade_no
 		});
@@ -224,5 +224,5 @@ export class EasyPayService {
 
 export function createEasyPayService(env: Env) {
 	const db = createDb(env.DB);
-	return new EasyPayService(env, new OrderRepository(db), new ProviderRepository(db), new MerchantRepository(db));
+	return new EasyPayService(env, new OrderRepository(db), new ProviderRepository(db), new AppRepository(db));
 }

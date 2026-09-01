@@ -6,36 +6,10 @@ export const appSettings = sqliteTable('app_settings', {
 	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 });
 
-export const apps = sqliteTable(
-	'apps',
-	{
-		id: text('id').primaryKey(),
-		code: text('code').notNull(),
-		name: text('name').notNull(),
-		status: text('status').notNull().default('active'),
-		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-		updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-	},
-	(t) => [uniqueIndex('apps_code_idx').on(t.code), index('apps_status_idx').on(t.status)],
-);
-export const appConfigs = sqliteTable('app_configs', {
-	appId: text('app_id').primaryKey(),
-	enabledPaymentTypes: text('enabled_payment_types').notNull().default('alipay,wxpay,stripe'),
-	minAmount: text('min_amount').notNull().default('1.00'),
-	maxAmount: text('max_amount').notNull().default('1000.00'),
-	dailyLimit: text('daily_limit').notNull().default('10000.00'),
-	orderTimeoutMinutes: integer('order_timeout_minutes').notNull().default(5),
-	maxPendingOrders: integer('max_pending_orders').notNull().default(3),
-	balanceDisabled: integer('balance_disabled', { mode: 'boolean' }).notNull().default(false),
-	helpText: text('help_text'),
-	helpImageUrl: text('help_image_url'),
-	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
-});
 export const orders = sqliteTable(
 	'orders',
 	{
 		id: text('id').primaryKey(),
-		appId: text('app_id').notNull(),
 		userId: text('user_id').notNull(),
 		userEmail: text('user_email'),
 		amount: text('amount').notNull(),
@@ -55,7 +29,7 @@ export const orders = sqliteTable(
 		externalReturnUrl: text('external_return_url'),
 		subject: text('subject').notNull().default('个人支付网关充值'),
 		orderType: text('order_type').notNull().default('balance'),
-		downstreamMerchantId: text('downstream_merchant_id'),
+		appId: text('app_id'),
 		planId: text('plan_id'),
 		expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
 		paidAt: integer('paid_at', { mode: 'timestamp' }),
@@ -72,7 +46,6 @@ export const orders = sqliteTable(
 	},
 	(t) => [
 		uniqueIndex('orders_recharge_code_idx').on(t.rechargeCode),
-		index('orders_app_idx').on(t.appId),
 		index('orders_user_idx').on(t.userId),
 		index('orders_status_idx').on(t.status),
 		index('orders_created_idx').on(t.createdAt),
@@ -95,7 +68,6 @@ export const paymentProviderInstances = sqliteTable(
 	'payment_provider_instances',
 	{
 		id: text('id').primaryKey(),
-		appId: text('app_id').notNull(),
 		providerKey: text('provider_key').notNull(),
 		name: text('name').notNull(),
 		config: text('config').notNull().default('{}'),
@@ -107,7 +79,7 @@ export const paymentProviderInstances = sqliteTable(
 		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 		updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 	},
-	(t) => [index('providers_app_idx').on(t.appId), index('providers_key_idx').on(t.providerKey)],
+	(t) => [index('providers_key_idx').on(t.providerKey)],
 );
 export const systemConfigs = sqliteTable('system_configs', {
 	key: text('key').primaryKey(),
@@ -116,11 +88,12 @@ export const systemConfigs = sqliteTable('system_configs', {
 	label: text('label'),
 	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 });
-export const downstreamMerchants = sqliteTable(
-	'downstream_merchants',
+export const apps = sqliteTable(
+	'apps',
 	{
 		id: text('id').primaryKey(),
 		code: text('code').notNull(),
+		name: text('name').notNull(),
 		protocol: text('protocol').notNull(),
 		pid: text('pid').notNull(),
 		secret: text('secret').notNull(),
@@ -128,9 +101,13 @@ export const downstreamMerchants = sqliteTable(
 		createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 		updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 	},
-	(t) => [uniqueIndex('downstream_merchants_code_idx').on(t.code)],
+	(t) => [uniqueIndex('apps_code_idx').on(t.code)],
 );
 
 export type AppSetting = typeof appSettings.$inferSelect;
 export type NewAppSetting = typeof appSettings.$inferInsert;
+export type App = typeof apps.$inferSelect;
+export type NewApp = typeof apps.$inferInsert;
+export type Order = typeof orders.$inferSelect;
+export type NewOrder = typeof orders.$inferInsert;
 export type PaymentProviderInstance = typeof paymentProviderInstances.$inferSelect;
